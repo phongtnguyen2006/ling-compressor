@@ -56,6 +56,39 @@ def test_markdown_table_is_passthrough():
     assert any(b.kind is BlockKind.PASSTHROUGH and "Col A" in b.text for b in blocks)
 
 
+def test_multi_row_table_stays_passthrough():
+    text = (
+        "Here is the breakdown.\n"
+        "| Name | Role |\n"
+        "| --- | --- |\n"
+        "| Alice | Engineer |\n"
+        "| Bob | Manager |\n"
+        "Closing remark.\n"
+    )
+    blocks = segment(text)
+    assert any(
+        b.kind is BlockKind.PASSTHROUGH and "Alice" in b.text and "Engineer" in b.text
+        for b in blocks
+    )
+    assert any(
+        b.kind is BlockKind.PASSTHROUGH and "Bob" in b.text and "Manager" in b.text
+        for b in blocks
+    )
+    assert any(
+        b.kind is BlockKind.PROSE and "Closing remark" in b.text for b in blocks
+    )
+    assert "".join(b.text for b in blocks) == text
+
+
+def test_indented_at_prose_is_not_stack_trace():
+    text = "Some intro.\n  at the crossroads she paused and waited.\n"
+    blocks = segment(text)
+    target = next(
+        b for b in blocks if "at the crossroads she paused" in b.text
+    )
+    assert target.kind is BlockKind.PROSE
+
+
 @given(st.text())
 def test_reassembly_never_loses_bytes(text):
     assert _reassembles(text)
