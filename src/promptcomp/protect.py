@@ -25,6 +25,11 @@ _NEGATION_RE = re.compile(
     re.IGNORECASE,
 )
 
+# "X" means ... / "X" means ...
+_DEF_MEANS_RE = re.compile(r'[""]([A-Z][^""]{1,60})[""]\s+means\b')
+# X ("the Y") / X ("Y")
+_DEF_PAREN_RE = re.compile(r'\([""](?:the\s+)?([A-Z][^""]{1,60})[""]\)')
+
 
 @dataclass(frozen=True)
 class ProtectList:
@@ -69,3 +74,12 @@ def extract_numbers(text: str) -> list[str]:
 def extract_negations(text: str) -> list[str]:
     """Every negation-word occurrence, lowercased, in document order."""
     return [m.group(0).lower() for m in _NEGATION_RE.finditer(text)]
+
+
+def extract_defined_terms(text: str) -> set[str]:
+    """Terms introduced by definition patterns; supplements the yaml list."""
+    terms: set[str] = set()
+    for pat in (_DEF_MEANS_RE, _DEF_PAREN_RE):
+        for m in pat.finditer(text):
+            terms.add(m.group(1).strip())
+    return terms

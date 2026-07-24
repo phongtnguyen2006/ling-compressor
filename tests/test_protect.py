@@ -65,3 +65,23 @@ def test_extract_negations_word_boundary():
     # "nothing" contains "no" but must not count as a bare "no".
     text = "There is nothing here."
     assert "no" not in extract_negations(text)
+
+
+from promptcomp.protect import extract_defined_terms
+
+
+def test_defined_term_quoted_means_pattern():
+    text = 'The "Reimbursable Amount" means the total eligible expense.'
+    terms = extract_defined_terms(text)
+    assert "Reimbursable Amount" in terms
+
+
+def test_defined_term_parenthetical_pattern():
+    text = 'Acme Corporation ("the Company") shall pay all fees.'
+    terms = extract_defined_terms(text)
+    assert any("Company" in t for t in terms)
+
+
+def test_no_false_positive_on_plain_prose():
+    text = "The committee approved the budget in the morning."
+    assert extract_defined_terms(text) == set()
