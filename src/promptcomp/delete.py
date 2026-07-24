@@ -43,6 +43,9 @@ def _join_seam(left: str, right: str) -> str:
         return l + r
     if had_space:
         return l + " " + r
+    # Never merge two word characters into a single token across a seam.
+    if l[-1:].isalnum() and r[:1].isalnum():
+        return l + " " + r
     return l + r
 
 

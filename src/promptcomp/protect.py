@@ -107,6 +107,16 @@ def _content_class(doc, cand: Candidate, pl: ProtectList):
                 return "number" if ent.label_ in pl.ner_numeric else "entity"
 
     toks = _span_tokens(doc, cand.char_start, cand.char_end)
+
+    # Currency/percent symbols and number-adjacent fragments belong to their
+    # number and must never be severed from it.
+    if any(t.is_currency or t.text in {"$", "€", "£", "¥", "%"} for t in toks):
+        return "number"
+    before = doc.text[cand.char_start - 1] if cand.char_start > 0 else ""
+    after = doc.text[cand.char_end] if cand.char_end < len(doc.text) else ""
+    if before.isdigit() or after.isdigit():
+        return "number"
+
     if any(t.dep_ == "neg" for t in toks) or extract_negations(text):
         return "negation"
 
