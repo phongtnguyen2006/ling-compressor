@@ -73,6 +73,10 @@ def main(argv: list[str] | None = None) -> int:
         print("warnings      :")
         for w in result.warnings:
             print(f"    - {w}")
+    if result.deleted:
+        print("deleted       :")
+        for d in result.deleted:
+            print(f"    [{d.deprel:9}] {d.score:6.3f} {d.span.start:>6}: {d.text!r}")
 
     if args.show_candidates:
         from promptcomp.segment import segment

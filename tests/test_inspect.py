@@ -78,3 +78,17 @@ def test_show_candidates_marks_vetoed(tmp_path, capsys):
     assert "VETOED" in out          # the money PP is struck
     assert "number" in out          # with its reason
     assert "SURVIVOR" in out        # "in the morning" survives
+
+
+def test_inspect_prints_deletions(tmp_path, capsys):
+    doc = tmp_path / "doc.txt"
+    doc.write_text(
+        "The committee approved the annual budget in the morning after a long debate.\n"
+    )
+    rc = inspect_cli.main(
+        ["--file", str(doc), "--ratio", "0.5", "--min-tokens", "0",
+         "--cache-path", str(tmp_path / "c.sqlite")]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "deleted" in out.lower()
