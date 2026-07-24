@@ -45,17 +45,22 @@ def compress(
     if scorer is None:
         scorer = HeuristicScorer()
 
+    protect_list = load_protect_list()
+    phrases, sub_version = load_substitutions() if substitute else ({}, "")
+
     cfg = dict(
         target_ratio=target_ratio,
         substitute=substitute,
         min_tokens=min_tokens,
         max_deletion_fraction=max_deletion_fraction,
         scorer=scorer.name,
+        protect_list_version=protect_list.version,
+        sub_version=sub_version,
+        counter=counter.name,
     )
     config_hash = _config_hash(**cfg)
 
     tokens_before = counter.count(text)
-    protect_list = load_protect_list()
 
     if tokens_before < min_tokens:
         timings["total"] = (time.perf_counter() - t0) * 1000
@@ -69,7 +74,6 @@ def compress(
 
     yaml_terms, _ = load_defined_terms()
     defined = frozenset(yaml_terms) | frozenset(extract_defined_terms(text))
-    phrases, sub_version = load_substitutions() if substitute else ({}, "")
 
     out_parts: list[str] = []
     deleted: list = []

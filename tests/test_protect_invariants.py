@@ -34,9 +34,16 @@ CURATED = [
     "Employees may not claim more than 15% above the standard rate in any month.",
     "No exception applies unless approved in writing by the regional director beforehand.",
     # Deletable relative clause alongside a protected date and negation.
-    "The auditor, arriving early that rainy morning, confirmed compliance on March 3, 2026, without exception.",
+    # ("on a rainy morning", not "that rainy morning" -- the latter is tagged
+    # by spaCy as a TIME entity and, once TIME is protected, swallows the
+    # whole deletable clause, making this fixture vacuous.)
+    "The auditor, arriving early on a rainy morning, confirmed compliance on March 3, 2026, without exception.",
     # Deletable relative clause alongside a protected amount and negation.
     "The manager, who reviewed the file carefully, approved the invoice for $3,750 without further delay.",
+    # Contains a spelled-out-number TIME entity ("three hours") plus deletable
+    # adjuncts; regression fixture for the under-veto where TIME entities
+    # (and thus spelled-out numbers inside them) were not protected.
+    "The engineers assembled the finished unit in three hours after a long lunch, and delivered it quietly.",
 ]
 
 # Docs/sentences empirically confirmed (see below) to produce at least one
@@ -50,6 +57,7 @@ DELETING_DOCS = [
     CURATED[2],
     CURATED[3],
     CURATED[4],
+    CURATED[5],
 ]
 
 
@@ -155,3 +163,19 @@ def test_no_substitution_touches_a_protected_term():
         assert not extract_protected_terms(value, _PL), (
             f"substitution value {value!r} is a protected term; would corrupt protected-term auditing"
         )
+
+
+# Independent oracle: numeric/temporal entities spaCy recognizes must never lose tokens,
+# regardless of what the protect-list yaml currently enumerates.
+_NUMERIC_NER_LABELS = {"CARDINAL", "ORDINAL", "QUANTITY", "MONEY", "PERCENT", "DATE", "TIME"}
+
+
+@pytest.mark.parametrize("doc", CORPUS + CURATED)
+@pytest.mark.parametrize("ratio", [0.3, 0.5, 0.7])
+def test_numeric_entities_preserved_independent_oracle(doc, ratio):
+    result = compress(doc, target_ratio=ratio, min_tokens=0)
+    for ent in parse(result.original).ents:
+        if ent.label_ in _NUMERIC_NER_LABELS:
+            assert ent.text.strip() in result.compressed, (
+                f"lost numeric entity {ent.label_} {ent.text!r} at ratio {ratio}"
+            )

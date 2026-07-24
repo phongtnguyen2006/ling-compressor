@@ -1,8 +1,8 @@
-version: "protect-2026-07-24.1"
+version: "protect-2026-07-24.2"
 
 # spaCy NER labels whose entities must never be deleted.
-ner_numeric: [CARDINAL, MONEY, PERCENT, DATE, QUANTITY, ORDINAL]
-ner_entity: [ORG, PERSON, GPE, LAW, FAC]
+ner_numeric: [CARDINAL, MONEY, PERCENT, DATE, QUANTITY, ORDINAL, TIME]
+ner_entity: [ORG, PERSON, GPE, LAW, FAC, NORP, LOC, PRODUCT, EVENT, WORK_OF_ART, LANGUAGE]
 
 # Single-word protected terms, matched case-insensitively on token text/lemma.
 single_terms:

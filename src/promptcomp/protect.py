@@ -28,7 +28,7 @@ _NEGATION_WORDS = frozenset(
     {"not", "no", "never", "without", "nor", "neither", "none", "cannot"}
 )
 _NEGATION_RE = re.compile(
-    r"\b(?:not|no|never|without|nor|neither|none|cannot)\b|n['’]t",
+    r"\b(?:" + "|".join(sorted(_NEGATION_WORDS, key=len, reverse=True)) + r")\b|n['’]t",
     re.IGNORECASE,
 )
 
