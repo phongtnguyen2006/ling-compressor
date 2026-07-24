@@ -6,6 +6,7 @@ is a build failure.
 """
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
@@ -80,6 +81,37 @@ def extract_numbers(text: str) -> list[str]:
 def extract_negations(text: str) -> list[str]:
     """Every negation-word occurrence, lowercased, in document order."""
     return [m.group(0).lower() for m in _NEGATION_RE.finditer(text)]
+
+
+def extract_protected_terms(text: str, protect_list: ProtectList) -> Counter:
+    """Multiset of protect-list term occurrences (single words + phrases), lowercased.
+
+    Mirrors the veto's term matching so the invariant suite and the veto agree.
+    """
+    low = text.lower()
+    counts: Counter = Counter()
+    # single-word terms: whole-word, case-insensitive
+    for words in protect_list.single_terms.values():
+        for w in words:
+            n = len(re.findall(r"\b" + re.escape(w) + r"\b", low))
+            if n:
+                counts[w] += n
+    # phrase terms: substring occurrences (non-overlapping)
+    for phrases in protect_list.phrase_terms.values():
+        for p in phrases:
+            if not p:
+                continue
+            start = 0
+            c = 0
+            while True:
+                i = low.find(p, start)
+                if i == -1:
+                    break
+                c += 1
+                start = i + len(p)
+            if c:
+                counts[p] += c
+    return counts
 
 
 def extract_defined_terms(text: str) -> set[str]:

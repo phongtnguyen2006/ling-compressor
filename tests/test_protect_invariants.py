@@ -6,12 +6,15 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from promptcomp import compress
-from promptcomp.protect import extract_numbers, extract_negations
+from promptcomp.protect import extract_numbers, extract_negations, extract_protected_terms, load_protect_list
+from promptcomp.parse import parse
 from promptcomp.segment import segment
 from promptcomp.types import BlockKind
 
 _SAMPLES = Path(__file__).resolve().parents[1] / "data" / "samples"
 CORPUS = [p.read_text() for p in sorted(_SAMPLES.glob("*.txt"))]
+
+_PL = load_protect_list()
 
 _MEMO1 = next(p.read_text() for p in _SAMPLES.glob("*.txt") if p.name == "memo1.txt")
 _POLICY_SNIP = next(p.read_text() for p in _SAMPLES.glob("*.txt") if p.name == "policy_snip.txt")
@@ -90,6 +93,45 @@ def test_passthrough_blocks_byte_identical(doc):
 def test_deletion_actually_occurs(doc):
     result = compress(doc, target_ratio=0.4, min_tokens=0)
     assert len(result.deleted) > 0, "fixture no longer exercises deletion; invariants would be vacuous"
+
+
+@pytest.mark.parametrize("doc", CORPUS + CURATED)
+@pytest.mark.parametrize("ratio", [0.3, 0.5, 0.7])
+def test_protected_terms_preserved(doc, ratio):
+    result = compress(doc, target_ratio=ratio, min_tokens=0)
+    before = extract_protected_terms(result.original, _PL)
+    after = extract_protected_terms(result.compressed, _PL)
+    missing = before - after
+    if missing:
+        # A protected term occurrence may legitimately disappear from the
+        # compressed text ONLY if Stage 4's audited, lossless substitution
+        # dictionary rewrote it -- e.g. "in the event that" -> "if" swaps
+        # one protected conditional marker for another equally-protected
+        # one; result.substitutions is the audit trail proving that. A
+        # silent loss (a veto/scope regression) has no matching audit
+        # entry and must still fail this test.
+        applied_originals = [orig.lower() for orig in result.substitutions]
+        unexplained = Counter(
+            {
+                term: n
+                for term, n in missing.items()
+                if not any(term in orig for orig in applied_originals)
+            }
+        )
+        assert not unexplained, f"lost protected term(s): {unexplained}"
+
+
+@pytest.mark.parametrize("doc", CORPUS + CURATED)
+@pytest.mark.parametrize("ratio", [0.3, 0.5, 0.7])
+def test_named_entities_preserved(doc, ratio):
+    result = compress(doc, target_ratio=ratio, min_tokens=0)
+    protected_labels = _PL.ner_numeric | _PL.ner_entity
+    doc_parsed = parse(result.original)
+    for ent in doc_parsed.ents:
+        if ent.label_ in protected_labels:
+            assert ent.text in result.compressed, (
+                f"protected {ent.label_} entity lost: {ent.text!r}"
+            )
 
 
 PASSTHROUGH_DOC = (
