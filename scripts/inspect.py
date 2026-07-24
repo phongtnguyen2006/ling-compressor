@@ -78,16 +78,30 @@ def main(argv: list[str] | None = None) -> int:
         from promptcomp.segment import segment
         from promptcomp.types import BlockKind
         from promptcomp.parse import parse, enumerate_candidates
+        from promptcomp.protect import (
+            veto, load_protect_list, load_defined_terms, extract_defined_terms,
+        )
+
+        pl = load_protect_list()
+        yaml_terms, _ = load_defined_terms()
+        auto_terms = extract_defined_terms(text)
+        defined = frozenset(yaml_terms) | frozenset(auto_terms)
 
         print("candidates    :")
         for block in segment(text):
             if block.kind is not BlockKind.PROSE:
                 continue
             doc = parse(block.text)
-            for c in enumerate_candidates(doc):
-                # offset-adjust into the original document
+            cands = enumerate_candidates(doc)
+            survivors, vetoes = veto(doc, cands, pl, defined)
+            veto_by_range = {(v.span.start, v.span.end): v.protect_class for v in vetoes}
+            for c in cands:
                 start = block.start + c.char_start
-                print(f"    [{c.deprel:9}] {start:>6}: {c.text!r}")
+                mark = "SURVIVOR"
+                reason = veto_by_range.get((c.char_start, c.char_end))
+                if reason is not None:
+                    mark = f"VETOED:{reason}"
+                print(f"    [{c.deprel:9}] {mark:16} {start:>6}: {c.text!r}")
 
     if args.out:
         Path(args.out).write_text(json.dumps(_result_to_dict(result), indent=2))
