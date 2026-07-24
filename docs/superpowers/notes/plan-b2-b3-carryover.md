@@ -24,3 +24,12 @@
 - Add a test asserting `original[start:start+len(c.text)] == c.text` for the inspect offset mapping.
 - Wheel-build smoke check to prove packaging for the non-editable path (tests only cover editable).
 - config_hash should include scorer identity once B3 makes deletion scorer-driven (from Plan A review).
+
+## Confirmed sound after B2 (context for B3 deletion)
+- protect veto now covers: numbers (regex+NER), NER entities, negation (dep+lemmas+n't),
+  single-word terms, multi-word phrases (char-span OVERLAP), defined terms (yaml+auto, overlap),
+  nested modal auxiliaries (span tokens), neg/modal scope. `veto()` also vetoes any candidate whose
+  range doesn't token-align (`doc.char_span` None => "unaligned").
+- B3 deletion must: only delete SURVIVORS from veto(); still add the non-projective guard (a survivor
+  whose contiguous slice includes non-subtree tokens must be skipped/split before deletion).
+- The invariant suite (B3) MUST reuse extract_numbers/extract_negations from protect.py (shared source of truth).
