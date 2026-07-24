@@ -1,0 +1,16 @@
+version: "protect-2026-07-24.1"
+
+# spaCy NER labels whose entities must never be deleted.
+ner_numeric: [CARDINAL, MONEY, PERCENT, DATE, QUANTITY, ORDINAL]
+ner_entity: [ORG, PERSON, GPE, LAW, FAC]
+
+# Single-word protected terms, matched case-insensitively on token text/lemma.
+single_terms:
+  conditional: [unless, except, if, otherwise]
+  modal: [shall, must, may, obligated]
+  quantifier: [all, each, any, every, solely, exclusively]
+
+# Multi-word protected phrases, matched case-insensitively as substrings of the candidate text.
+phrase_terms:
+  conditional: ["provided that", "subject to", "contingent on", "in the event", "only if"]
+  modal: ["will not", "required to", "entitled to", "not to exceed", "at least", "no more than", "at most"]
