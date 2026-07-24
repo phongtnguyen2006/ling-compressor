@@ -79,3 +79,43 @@ def test_select_is_deterministic():
     scored = [(a, 0.5), (b, 0.5)]  # tie -> break by char_start
     sel = select_deletions(scored, budget_tokens=1, max_fraction=1.0, total_tokens=10)
     assert [c.char_start for c, _ in sel] == [0]
+
+
+def test_deletion_preserves_unrelated_formatting():
+    # Pre-existing double space and indentation far from the cut must be untouched.
+    text = "Line one has  two spaces.\n    indented line stays.\nDelete this here now, quietly."
+    doc = parse(text)
+    cands = enumerate_candidates(doc)
+    q = next(c for c in cands if c.text == "quietly")
+    out, _ = apply_deletions(text, [(q, 0.1)])
+    assert "has  two spaces" in out          # pre-existing double space preserved
+    assert "\n    indented line stays" in out  # indentation preserved
+    assert "quietly" not in out
+
+
+def test_deletion_drops_orphaned_trailing_comma():
+    text = "The committee approved the budget in the morning, quietly."
+    doc = parse(text)
+    cands = enumerate_candidates(doc)
+    q = next(c for c in cands if c.text == "quietly")
+    out, _ = apply_deletions(text, [(q, 0.1)])
+    assert ",." not in out
+    assert out.rstrip().endswith("morning.")
+
+
+def test_deletion_of_parenthetical_leaves_single_comma():
+    text = "The committee, quietly, approved the budget."
+    doc = parse(text)
+    cands = enumerate_candidates(doc)
+    q = next(c for c in cands if c.text == "quietly")
+    out, _ = apply_deletions(text, [(q, 0.1)])
+    assert ",," not in out
+    assert "committee, approved" in out or "committee approved" in out
+
+
+def test_apply_deletions_rejects_overlapping():
+    import pytest
+    c1 = Candidate(deprel="advmod", char_start=0, char_end=20, head_text="x", text="x"*20, n_tokens=3)
+    c2 = Candidate(deprel="advmod", char_start=5, char_end=10, head_text="y", text="y"*5, n_tokens=1)
+    with pytest.raises(ValueError):
+        apply_deletions("x"*30, [(c1, 0.1), (c2, 0.2)])

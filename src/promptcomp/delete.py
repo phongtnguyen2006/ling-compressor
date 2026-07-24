@@ -1,18 +1,12 @@
 """Stage 3 deletion mechanics: contiguity guard, range removal, seam cleanup."""
 from __future__ import annotations
 
-import re
-
 from .types import Candidate, Deletion, Span
 
-# Whitespace-seam normalizers applied after removing spans.
-_MULTISPACE = re.compile(r"[ \t]{2,}")
-_SPACE_BEFORE_PUNCT = re.compile(r"[ \t]+([,.;:!?)\]])")
-_SPACE_AFTER_OPEN = re.compile(r"([(\[])[ \t]+")
-_SPACE_BEFORE_NL = re.compile(r"[ \t]+(\n)")
-_SPACE_AFTER_NL = re.compile(r"(\n)[ \t]+")
-_DOUBLE_COMMA = re.compile(r",\s*,")
-_SPACE_RUN = None  # reserved
+# Punctuation that must hug the preceding word (no space before it).
+_LEAD_PUNCT = frozenset(".,;:!?)]}%")
+# If a dangling comma is immediately followed by one of these, drop the comma.
+_COMMA_ABSORB = frozenset(",.;:!?)]}")
 
 
 def is_contiguous_subtree(doc, cand: Candidate) -> bool:
@@ -21,15 +15,28 @@ def is_contiguous_subtree(doc, cand: Candidate) -> bool:
     return span is not None and len(span) == cand.n_tokens
 
 
-def _normalize_seams(text: str) -> str:
-    text = _DOUBLE_COMMA.sub(",", text)
-    text = _MULTISPACE.sub(" ", text)
-    text = _SPACE_BEFORE_PUNCT.sub(r"\1", text)
-    text = _SPACE_AFTER_OPEN.sub(r"\1", text)
-    text = _SPACE_BEFORE_NL.sub(r"\1", text)
-    text = _SPACE_AFTER_NL.sub(r"\1", text)
-    text = _MULTISPACE.sub(" ", text)
-    return text
+def _join_seam(left: str, right: str) -> str:
+    """Join two kept pieces across a deletion cut, cleaning only the junction.
+
+    Touches only whitespace/punctuation adjacent to the seam; never rewrites
+    formatting elsewhere in either piece.
+    """
+    l = left.rstrip(" \t")
+    r = right.lstrip(" \t")
+    had_space = (left != l) or (right != r)
+    # Orphaned comma left behind by a deleted clause: drop it if the surviving
+    # right side begins with terminal/close/other punctuation (incl. another comma).
+    if l.endswith(",") and r[:1] in _COMMA_ABSORB:
+        l = l[:-1]
+    if not r:
+        return l
+    if r[0] in _LEAD_PUNCT:
+        return l + r
+    if l[-1:] in "([{":
+        return l + r
+    if had_space:
+        return l + " " + r
+    return l + r
 
 
 def apply_deletions(
@@ -40,11 +47,13 @@ def apply_deletions(
     if not selected:
         return text, []
     ordered = sorted(selected, key=lambda cs: cs[0].char_start)
-    out: list[str] = []
+    kept: list[str] = []
     deletions: list[Deletion] = []
     pos = 0
     for cand, sc in ordered:
-        out.append(text[pos : cand.char_start])
+        if cand.char_start < pos:
+            raise ValueError("apply_deletions received overlapping candidates")
+        kept.append(text[pos : cand.char_start])
         deletions.append(
             Deletion(
                 span=Span(cand.char_start + base_offset, cand.char_end + base_offset),
@@ -55,8 +64,11 @@ def apply_deletions(
             )
         )
         pos = cand.char_end
-    out.append(text[pos:])
-    return _normalize_seams("".join(out)), deletions
+    kept.append(text[pos:])
+    result = kept[0]
+    for piece in kept[1:]:
+        result = _join_seam(result, piece)
+    return result, deletions
 
 
 def _overlaps(a: Candidate, b: Candidate) -> bool:
