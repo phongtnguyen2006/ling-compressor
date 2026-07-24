@@ -101,24 +101,7 @@ def test_protected_terms_preserved(doc, ratio):
     result = compress(doc, target_ratio=ratio, min_tokens=0)
     before = extract_protected_terms(result.original, _PL)
     after = extract_protected_terms(result.compressed, _PL)
-    missing = before - after
-    if missing:
-        # A protected term occurrence may legitimately disappear from the
-        # compressed text ONLY if Stage 4's audited, lossless substitution
-        # dictionary rewrote it -- e.g. "in the event that" -> "if" swaps
-        # one protected conditional marker for another equally-protected
-        # one; result.substitutions is the audit trail proving that. A
-        # silent loss (a veto/scope regression) has no matching audit
-        # entry and must still fail this test.
-        applied_originals = [orig.lower() for orig in result.substitutions]
-        unexplained = Counter(
-            {
-                term: n
-                for term, n in missing.items()
-                if not any(term in orig for orig in applied_originals)
-            }
-        )
-        assert not unexplained, f"lost protected term(s): {unexplained}"
+    assert after >= before, f"lost protected term(s): {before - after}"
 
 
 @pytest.mark.parametrize("doc", CORPUS + CURATED)
@@ -158,3 +141,17 @@ def test_property_numbers_and_negation_preserved(template, ratio):
     result = compress(template, target_ratio=ratio, min_tokens=0)
     assert _numbers_multiset(template) == _numbers_multiset(result.compressed)
     assert len(extract_negations(result.compressed)) >= len(extract_negations(template))
+
+
+from promptcomp.substitute import load_substitutions
+
+
+def test_no_substitution_touches_a_protected_term():
+    phrases, _ = load_substitutions()
+    for key, value in phrases.items():
+        assert not extract_protected_terms(key, _PL), (
+            f"substitution key {key!r} is a protected term; substitution must not rewrite protected classes"
+        )
+        assert not extract_protected_terms(value, _PL), (
+            f"substitution value {value!r} is a protected term; would corrupt protected-term auditing"
+        )
