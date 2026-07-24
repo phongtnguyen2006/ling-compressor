@@ -101,3 +101,65 @@ def test_extract_numbers_no_trailing_comma_and_signs():
     assert extract_numbers("$1,000, $2,000 owed")[0] == "$1,000"
     assert ".5" in extract_numbers("a value of .5 units")
     assert "-5" in extract_numbers("a delta of -5 points")
+
+
+# tests/test_protect.py  (append)
+from promptcomp.parse import parse, enumerate_candidates
+from promptcomp.protect import veto, load_protect_list
+
+
+def _veto_reasons(text, defined=frozenset()):
+    doc = parse(text)
+    cands = enumerate_candidates(doc)
+    survivors, vetoes = veto(doc, cands, load_protect_list(), defined)
+    return survivors, vetoes, {v.protect_class for v in vetoes}
+
+
+def test_candidate_with_number_is_vetoed():
+    # "of $2 million" is a PP candidate carrying money — must be struck.
+    _, vetoes, classes = _veto_reasons(
+        "The committee approved a budget of $2 million after long debate."
+    )
+    assert any("2 million" in v.text or "$2" in v.text for v in vetoes)
+
+
+def test_candidate_with_negation_is_vetoed():
+    _, vetoes, classes = _veto_reasons(
+        "The vendor delivered the goods without any prior notice."
+    )
+    assert "negation" in classes
+
+
+def test_clean_adjunct_survives():
+    survivors, vetoes, _ = _veto_reasons(
+        "The committee approved the budget in the morning."
+    )
+    # "in the morning" carries nothing protected -> survives.
+    assert any("in the morning" in c.text for c in survivors)
+
+
+def test_modal_scope_vetoes_descendant_adjunct():
+    # The adverbial under "must" is in modal scope -> struck even if it looks clean.
+    survivors, vetoes, classes = _veto_reasons(
+        "The tenant must vacate the premises quietly."
+    )
+    assert any(v.protect_class in {"scope", "modal"} for v in vetoes)
+
+
+def test_defined_term_in_candidate_is_vetoed():
+    _, vetoes, classes = _veto_reasons(
+        "The board approved the plan for the Reimbursable Amount without delay.",
+        defined=frozenset({"Reimbursable Amount"}),
+    )
+    assert "defined_term" in classes or "negation" in classes  # negation also present
+
+
+def test_veto_partitions_candidates():
+    doc = parse("The committee approved a budget of $2 million in the morning.")
+    cands = enumerate_candidates(doc)
+    survivors, vetoes = veto(doc, cands, load_protect_list())
+    assert len(survivors) + len(vetoes) == len(cands)
+    # deterministic
+    s2, v2 = veto(doc, cands, load_protect_list())
+    assert [c.text for c in survivors] == [c.text for c in s2]
+    assert [v.text for v in vetoes] == [v.text for v in v2]

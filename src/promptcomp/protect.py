@@ -13,6 +13,10 @@ import re
 
 import yaml
 
+from .types import Candidate, Span, Veto
+
+_MODAL_AUX_WORDS = frozenset({"shall", "must", "may", "will", "would", "should", "can", "could", "might"})
+
 # Currency/optional-thousands/optional-decimal/optional-percent numeric literal.
 # No trailing-comma absorption; catches a leading sign and leading decimals.
 _NUMBER_RE = re.compile(r"[-−]?\$?(?:\d[\d,]*\d|\d)(?:\.\d+)?%?|\.\d+%?")
@@ -85,3 +89,77 @@ def extract_defined_terms(text: str) -> set[str]:
         for m in pat.finditer(text):
             terms.add(m.group(1).strip())
     return terms
+
+
+def _span_tokens(doc, start: int, end: int) -> list:
+    return [t for t in doc if t.idx >= start and (t.idx + len(t.text)) <= end]
+
+
+def _content_class(doc, cand: Candidate, pl: ProtectList, defined_terms: frozenset[str]):
+    text = cand.text
+    low = text.lower()
+
+    if extract_numbers(text):
+        return "number"
+
+    for ent in doc.ents:
+        if ent.label_ in pl.ner_numeric or ent.label_ in pl.ner_entity:
+            if not (ent.end_char <= cand.char_start or ent.start_char >= cand.char_end):
+                return "number" if ent.label_ in pl.ner_numeric else "entity"
+
+    toks = _span_tokens(doc, cand.char_start, cand.char_end)
+    if any(t.dep_ == "neg" for t in toks) or extract_negations(text):
+        return "negation"
+
+    forms = {t.text.lower() for t in toks} | {t.lemma_.lower() for t in toks}
+    for cls, words in pl.single_terms.items():
+        if forms & words:
+            return cls
+
+    for cls, phrases in pl.phrase_terms.items():
+        for phrase in phrases:
+            if phrase in low:
+                return cls
+
+    for term in defined_terms:
+        if term.lower() in low:
+            return "defined_term"
+
+    return None
+
+
+def _in_neg_or_modal_scope(root_token) -> bool:
+    chain = [root_token] + list(root_token.ancestors)
+    for anc in chain:
+        for child in anc.children:
+            if child.dep_ == "neg":
+                return True
+            if child.dep_ in {"aux", "auxpass"} and child.text.lower() in _MODAL_AUX_WORDS:
+                return True
+    return False
+
+
+def veto(doc, candidates, protect_list, defined_terms=frozenset()):
+    """Partition candidates into (survivors, vetoes). Hard rule; deterministic."""
+    survivors: list[Candidate] = []
+    vetoes: list[Veto] = []
+    for cand in candidates:
+        span = doc.char_span(cand.char_start, cand.char_end)
+        reason = None
+        if span is None:
+            reason = "unaligned"
+        else:
+            reason = _content_class(doc, cand, protect_list, defined_terms)
+            if reason is None and _in_neg_or_modal_scope(span.root):
+                reason = "scope"
+        if reason is None:
+            survivors.append(cand)
+        else:
+            vetoes.append(
+                Veto(
+                    span=Span(cand.char_start, cand.char_end),
+                    text=cand.text,
+                    protect_class=reason,
+                )
+            )
+    return survivors, vetoes
