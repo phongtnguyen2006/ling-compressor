@@ -148,10 +148,23 @@ def test_modal_scope_vetoes_descendant_adjunct():
 
 def test_defined_term_in_candidate_is_vetoed():
     _, vetoes, classes = _veto_reasons(
-        "The board approved the plan for the Reimbursable Amount without delay.",
+        "The board approved the plan for the Reimbursable Amount in the morning.",
         defined=frozenset({"Reimbursable Amount"}),
     )
-    assert "defined_term" in classes or "negation" in classes  # negation also present
+    assert "defined_term" in classes
+
+
+import pytest
+
+
+@pytest.mark.parametrize("modal", ["will", "would", "should", "can", "could", "might"])
+def test_nested_modal_aux_is_vetoed(modal):
+    # A modal aux nested >1 hop below the candidate root must still be struck.
+    sent = f"The team submitted a proposal designed to ensure that revenue {modal} grow steadily."
+    _, vetoes, classes = _veto_reasons(sent)
+    assert any(modal in v.text and v.protect_class == "modal" for v in vetoes), (
+        f"nested modal '{modal}' escaped veto"
+    )
 
 
 def test_veto_partitions_candidates():

@@ -116,6 +116,12 @@ def _content_class(doc, cand: Candidate, pl: ProtectList, defined_terms: frozens
         if forms & words:
             return cls
 
+    # Modal auxiliaries anywhere in the span (consistent with the scope rule's
+    # _MODAL_AUX_WORDS; catches modals nested deeper than a direct child).
+    for t in toks:
+        if t.dep_ in {"aux", "auxpass"} and t.text.lower() in _MODAL_AUX_WORDS:
+            return "modal"
+
     for cls, phrases in pl.phrase_terms.items():
         for phrase in phrases:
             if phrase in low:
