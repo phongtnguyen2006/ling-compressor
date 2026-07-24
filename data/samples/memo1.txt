@@ -1,0 +1,132 @@
+INTERNAL MEMORANDUM
+
+To: All Regional Staff
+From: Office of Finance and Administration
+Date: March 3, 2026
+Subject: Revised Expense Reimbursement Policy, Effective April 1, 2026
+
+1. Purpose
+
+This memorandum sets out the revised expense reimbursement policy for all
+employees, contractors, and approved volunteers of the organization. The
+policy is being issued for the purpose of clarifying documentation
+requirements, approval thresholds, and payment timelines that have caused
+confusion during the past two fiscal quarters. Staff should read this
+document carefully and retain a copy for future reference. In order to
+avoid processing delays, employees must follow the procedures described
+below exactly as written.
+
+2. General Principles
+
+Due to the fact that travel and incidental costs vary considerably across
+regional offices, the finance committee has adopted a tiered reimbursement
+structure. At this point in time, the organization reimburses reasonable
+and necessary business expenses only when they are incurred in direct
+support of approved organizational activities. Employees shall not submit
+claims for personal expenses, entertainment unrelated to business purposes,
+or expenses that exceed the limits described in Section 4. Employees may,
+however, request an exception in writing when unusual circumstances arise.
+
+3. Submission Timeline and Required Documentation
+
+All reimbursement requests must be submitted within thirty (30) calendar
+days of the date the expense was incurred. Prior to submitting a claim,
+employees must obtain an original receipt or an itemized digital invoice
+for any single expense exceeding $25.00. Subsequent to approval by a
+direct supervisor, the finance office will process payment within ten (10)
+business days. In the event that a receipt is lost or unavailable, the
+employee must complete Form FIN-114 and provide a written explanation, and
+a supervisor must countersign the form before it will be accepted.
+
+Claims submitted after the thirty-day window will be reduced by 15 percent
+as a processing penalty, and claims submitted more than ninety (90) days
+after the expense date will not be reimbursed under any circumstances.
+Approximately 12 percent of all claims filed in the previous fiscal year
+were returned for missing documentation, so staff are strongly encouraged
+to review their submissions carefully before sending them for approval.
+
+4. Reimbursement Limits
+
+The following daily limits apply to standard domestic travel, effective
+April 1, 2026:
+
+- Lodging: up to $185.00 per night in major metropolitan areas, and up to
+  $120.00 per night elsewhere.
+- Meals: up to $65.00 per day, itemized, or a flat per diem of $55.00 if
+  receipts are not itemized.
+- Ground transportation: up to $40.00 per day for taxis, ride-share
+  services, or public transit combined.
+- Mileage: reimbursed at $0.67 per mile for use of a personal vehicle when
+  no company vehicle is available.
+
+International travel limits are 30 percent higher than the domestic rates
+listed above, reflecting the increased cost of lodging and meals in most
+international markets. Employees traveling internationally must, prior to
+departure, obtain written approval from a department director and from the
+Office of Finance and Administration.
+
+5. Approval Workflow
+
+Expense reports must be entered into the finance portal using the employee's
+standard login credentials. A short reference guide is posted at the link
+below for employees who have not previously used the portal.
+
+https://intranet.example.org/finance/expense-portal-guide
+
+Reports are automatically routed to the employee's direct supervisor. In
+the event that the total submitted amount exceeds $1,000.00 in a single
+report, a secondary approval from the regional finance director is also
+required. Approvers should verify that each line item includes a valid
+date, a business justification, and a receipt where applicable. Approvers
+must not approve their own expense reports under any circumstances, and
+any attempt to do so will be flagged automatically by the system.
+
+For employees who need to script a bulk export of their historical claims,
+the finance portal exposes a small command-line utility. A typical
+invocation, run prior to a quarterly audit, looks like this:
+
+```
+# Export all approved claims for Q1 2026, prior to the audit deadline.
+finance-cli export --from 2026-01-01 --to 2026-03-31 \
+  --status approved --format csv --output q1_claims.csv
+```
+
+Note that the phrase "prior to" appears inside the code block above purely
+as an illustration; text inside fenced code blocks must be passed through
+by the compressor without any substitution, since scripts and commands are
+not safe to paraphrase.
+
+6. Non-Reimbursable Items
+
+The organization will not reimburse alcohol purchased for personal
+consumption, traffic or parking fines, expenses for a spouse or guest who
+is not conducting organization business, or upgrades to premium airline
+seating unless a documented medical accommodation applies. Due to the fact
+that these categories are the most common source of policy violations, the
+finance office reviews them with particular attention during the monthly
+audit cycle.
+
+7. Questions and Amendments
+
+This policy may be amended by the finance committee at any point in time,
+subsequent to a thirty-day notice period communicated to all staff by
+email. Employees with questions about a specific claim should, in the
+event that the finance portal does not resolve the issue, contact the
+regional finance office directly rather than submitting a duplicate claim.
+Approximately 4 percent of staff requested a policy clarification last
+year, and the finance office aims to respond to every inquiry within five
+(5) business days.
+
+8. Summary of Key Dates and Figures
+
+- Effective date: April 1, 2026
+- Submission window: 30 calendar days
+- Late penalty: 15 percent reduction
+- Absolute deadline: 90 days
+- Secondary approval threshold: $1,000.00
+- Domestic lodging cap: $185.00 per night
+- Mileage rate: $0.67 per mile
+
+All staff must review this memorandum prior to the effective date listed
+above. Supervisors shall ensure that their teams have acknowledged receipt
+of this policy no later than March 20, 2026.
