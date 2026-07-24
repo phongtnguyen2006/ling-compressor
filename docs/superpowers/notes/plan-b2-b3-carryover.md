@@ -33,3 +33,12 @@
 - B3 deletion must: only delete SURVIVORS from veto(); still add the non-projective guard (a survivor
   whose contiguous slice includes non-subtree tokens must be skipped/split before deletion).
 - The invariant suite (B3) MUST reuse extract_numbers/extract_negations from protect.py (shared source of truth).
+
+## M7 eval observations (from B3)
+- Modal/neg scope veto propagates across conjunct clauses (conj attaches to first conjunct whose
+  head bears the modal aux) -> a sentence with one "shall/must/may" can over-protect all its clauses.
+  SAFE (over-protect) per spec 11.1, but expect LOW compression on obligation-heavy legal text.
+  M7 should measure this; if compression is near-zero on the target domain, consider a tighter scope
+  rule (clause-local rather than ancestor-chain) — but ONLY with invariant tests proving no under-veto.
+- Re-add per-stage timings (segment/parse/veto/score/delete/substitute) to pipeline.timings_ms for
+  the inspect "per-stage timing" requirement (spec 5); dropped during the B3 rewrite.
