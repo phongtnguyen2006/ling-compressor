@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 _STOPWORDS = frozenset(
     """a an the of to in on at for and or but if then else when while is are was were be been
     being this that these those with without by from as into over under above below it its it's
-    he she they them his her their we you i our your""".split()
+    he she they them his her their we you i our your not no""".split()
 )
 
 
