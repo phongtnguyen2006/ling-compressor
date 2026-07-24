@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -57,8 +58,8 @@ class AnthropicCounter:
             return resp.input_tokens
         except Exception as e:  # pragma: no cover - network/auth dependent
             raise RuntimeError(
-                f"AnthropicCounter failed ({e}). Ensure ANTHROPIC_API_KEY is set "
-                "and the anthropic package is installed."
+                f"AnthropicCounter failed ({type(e).__name__}: {e}). Ensure the "
+                "anthropic package is installed and ANTHROPIC_API_KEY is set."
             ) from e
 
 
@@ -75,7 +76,7 @@ class CachedCounter:
         return self._inner.name
 
     def _init_db(self) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS token_counts "
                 "(key TEXT PRIMARY KEY, tokens INTEGER NOT NULL)"
@@ -87,7 +88,7 @@ class CachedCounter:
 
     def count(self, text: str) -> int:
         key = self._key(text)
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             row = conn.execute(
                 "SELECT tokens FROM token_counts WHERE key = ?", (key,)
             ).fetchone()
