@@ -29,7 +29,7 @@ def _fmt(v) -> str:
 
 def to_markdown(results: list[RunResult]) -> str:
     cols = ["compressor", "ratio", "tokens_before", "tokens_after", "compression_ratio",
-            "protected_violation_count", "accuracy_retention", "latency_ms"]
+            "protected_violation_count", "parse_failure_rate", "accuracy_retention", "latency_ms"]
     # accuracy_retention vs the 'none' ceiling per (doc, ratio)
     ceiling = {
         (r.doc_id, r.ratio): r.accuracy_f1
@@ -46,6 +46,7 @@ def to_markdown(results: list[RunResult]) -> str:
             "tokens_before": r.tokens_before, "tokens_after": r.tokens_after,
             "compression_ratio": r.compression_ratio,
             "protected_violation_count": r.protected_violation_count,
+            "parse_failure_rate": r.parse_failure_rate,
             "accuracy_retention": retention, "latency_ms": r.latency_ms,
         }
         lines.append("| " + " | ".join(_fmt(row[c]) for c in cols) + " |")

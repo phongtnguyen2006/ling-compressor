@@ -6,6 +6,7 @@ def _row(name, viol):
     return RunResult(
         doc_id="d1", compressor=name, ratio=0.5, tokens_before=100, tokens_after=70,
         compression_ratio=0.7, protected_violation_count=viol, latency_ms=1.2,
+        parse_failure_rate=0.0,
         accuracy_exact=None, accuracy_f1=None, accuracy_judge=None,
     )
 

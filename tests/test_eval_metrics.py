@@ -24,3 +24,14 @@ def test_compression_metrics_shapes():
     assert m["tokens_after"] < m["tokens_before"]
     assert 0 < m["compression_ratio"] <= 1.0
     assert m["token_counter"].startswith("tiktoken:")
+
+
+def test_parse_failure_rate_discriminates():
+    from eval.metrics import parse_failure_rate
+    from eval.baselines import OursCompressor, StopwordCompressor
+    text = ("The committee approved the annual budget in the morning after a long debate, "
+            "and the vendor delivered the goods quickly without any delay.")
+    ours_out = OursCompressor().compress(text, 0.5).text
+    stop_out = StopwordCompressor().compress(text, 0.5).text
+    assert parse_failure_rate(ours_out) <= parse_failure_rate(stop_out)
+    assert 0.0 <= parse_failure_rate(ours_out) <= 1.0

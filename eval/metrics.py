@@ -40,6 +40,16 @@ def protected_violation_count(original: str, compressed: str) -> int:
     return violations
 
 
+def parse_failure_rate(text: str) -> float:
+    """Fraction of sentences with no ROOT (a parse failure). 0.0 if no sentences."""
+    doc = parse(text)
+    sents = [s for s in doc.sents if s.text.strip()]
+    if not sents:
+        return 0.0
+    failures = sum(1 for s in sents if not any(t.dep_ == "ROOT" for t in s))
+    return failures / len(sents)
+
+
 def compression_metrics(original: str, compressed: str, counter) -> dict:
     before = counter.count(original)
     after = counter.count(compressed)
