@@ -57,3 +57,29 @@ def apply_deletions(
         pos = cand.char_end
     out.append(text[pos:])
     return _normalize_seams("".join(out)), deletions
+
+
+def _overlaps(a: Candidate, b: Candidate) -> bool:
+    return not (a.char_end <= b.char_start or b.char_end <= a.char_start)
+
+
+def select_deletions(
+    scored: list[tuple[Candidate, float]],
+    budget_tokens: int,
+    max_fraction: float,
+    total_tokens: int,
+) -> list[tuple[Candidate, float]]:
+    cap = int(max_fraction * total_tokens)
+    order = sorted(scored, key=lambda cs: (cs[1], cs[0].char_start))
+    selected: list[tuple[Candidate, float]] = []
+    removed = 0
+    for cand, sc in order:
+        if removed >= budget_tokens:
+            break
+        if removed + cand.n_tokens > cap:
+            continue
+        if any(_overlaps(cand, chosen) for chosen, _ in selected):
+            continue
+        selected.append((cand, sc))
+        removed += cand.n_tokens
+    return selected
