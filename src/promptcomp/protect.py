@@ -14,21 +14,23 @@ import re
 import yaml
 
 # Currency/optional-thousands/optional-decimal/optional-percent numeric literal.
-_NUMBER_RE = re.compile(r"\$?\d[\d,]*(?:\.\d+)?%?")
+# No trailing-comma absorption; catches a leading sign and leading decimals.
+_NUMBER_RE = re.compile(r"[-−]?\$?(?:\d[\d,]*\d|\d)(?:\.\d+)?%?|\.\d+%?")
 
-# Negation words treated as protected. Matched as whole words, case-insensitive.
+# Negation words treated as protected. Matched as whole words, case-insensitive,
+# plus the contracted negative suffix n't / n’t (isn't, won't, can't, doesn't).
 _NEGATION_WORDS = frozenset(
     {"not", "no", "never", "without", "nor", "neither", "none", "cannot"}
 )
 _NEGATION_RE = re.compile(
-    r"\b(" + "|".join(sorted(_NEGATION_WORDS, key=len, reverse=True)) + r")\b",
+    r"\b(?:not|no|never|without|nor|neither|none|cannot)\b|n['’]t",
     re.IGNORECASE,
 )
 
-# "X" means ... / "X" means ...
-_DEF_MEANS_RE = re.compile(r'[""]([A-Z][^""]{1,60})[""]\s+means\b')
-# X ("the Y") / X ("Y")
-_DEF_PAREN_RE = re.compile(r'\([""](?:the\s+)?([A-Z][^""]{1,60})[""]\)')
+# "X" means ... / "X" means ... (accepts both straight and curly quotes)
+_DEF_MEANS_RE = re.compile(r'["“]([A-Z][^"”]{1,60})["”]\s+means\b')
+# X ("the Y") / X ("Y") (accepts both straight and curly quotes)
+_DEF_PAREN_RE = re.compile(r'\(["“](?:the\s+)?([A-Z][^"”]{1,60})["”]\)')
 
 
 @dataclass(frozen=True)

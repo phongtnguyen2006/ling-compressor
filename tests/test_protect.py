@@ -85,3 +85,19 @@ def test_defined_term_parenthetical_pattern():
 def test_no_false_positive_on_plain_prose():
     text = "The committee approved the budget in the morning."
     assert extract_defined_terms(text) == set()
+
+
+def test_extract_defined_terms_handles_curly_quotes():
+    text = "The “Effective Date” means the date hereof."
+    assert "Effective Date" in extract_defined_terms(text)
+
+
+def test_extract_negations_catches_contractions():
+    negs = extract_negations("It isn't allowed and won't be permitted.")
+    assert negs.count("n't") == 2
+
+
+def test_extract_numbers_no_trailing_comma_and_signs():
+    assert extract_numbers("$1,000, $2,000 owed")[0] == "$1,000"
+    assert ".5" in extract_numbers("a value of .5 units")
+    assert "-5" in extract_numbers("a delta of -5 points")
