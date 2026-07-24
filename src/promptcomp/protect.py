@@ -95,9 +95,8 @@ def _span_tokens(doc, start: int, end: int) -> list:
     return [t for t in doc if t.idx >= start and (t.idx + len(t.text)) <= end]
 
 
-def _content_class(doc, cand: Candidate, pl: ProtectList, defined_terms: frozenset[str]):
+def _content_class(doc, cand: Candidate, pl: ProtectList):
     text = cand.text
-    low = text.lower()
 
     if extract_numbers(text):
         return "number"
@@ -122,16 +121,45 @@ def _content_class(doc, cand: Candidate, pl: ProtectList, defined_terms: frozens
         if t.dep_ in {"aux", "auxpass"} and t.text.lower() in _MODAL_AUX_WORDS:
             return "modal"
 
-    for cls, phrases in pl.phrase_terms.items():
-        for phrase in phrases:
-            if phrase in low:
-                return cls
-
-    for term in defined_terms:
-        if term.lower() in low:
-            return "defined_term"
-
     return None
+
+
+def _find_phrase_spans(text: str, protect_list: ProtectList) -> list[tuple[int, int, str]]:
+    low = text.lower()
+    spans: list[tuple[int, int, str]] = []
+    for cls, phrases in protect_list.phrase_terms.items():
+        for phrase in phrases:
+            if not phrase:
+                continue
+            start = 0
+            while True:
+                i = low.find(phrase, start)
+                if i == -1:
+                    break
+                spans.append((i, i + len(phrase), cls))
+                start = i + 1
+    return spans
+
+
+def _find_defined_spans(text: str, defined_terms: frozenset[str]) -> list[tuple[int, int, str]]:
+    low = text.lower()
+    spans: list[tuple[int, int, str]] = []
+    for term in defined_terms:
+        t = term.lower()
+        if not t:
+            continue
+        start = 0
+        while True:
+            i = low.find(t, start)
+            if i == -1:
+                break
+            spans.append((i, i + len(t), "defined_term"))
+            start = i + 1
+    return spans
+
+
+def _overlaps(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
+    return not (a_end <= b_start or b_end <= a_start)
 
 
 def _in_neg_or_modal_scope(root_token) -> bool:
@@ -147,6 +175,8 @@ def _in_neg_or_modal_scope(root_token) -> bool:
 
 def veto(doc, candidates, protect_list, defined_terms=frozenset()):
     """Partition candidates into (survivors, vetoes). Hard rule; deterministic."""
+    phrase_spans = _find_phrase_spans(doc.text, protect_list)
+    defined_spans = _find_defined_spans(doc.text, defined_terms)
     survivors: list[Candidate] = []
     vetoes: list[Veto] = []
     for cand in candidates:
@@ -155,7 +185,17 @@ def veto(doc, candidates, protect_list, defined_terms=frozenset()):
         if span is None:
             reason = "unaligned"
         else:
-            reason = _content_class(doc, cand, protect_list, defined_terms)
+            reason = _content_class(doc, cand, protect_list)
+            if reason is None:
+                for ps, pe, cls in phrase_spans:
+                    if _overlaps(cand.char_start, cand.char_end, ps, pe):
+                        reason = cls
+                        break
+            if reason is None:
+                for ds, de, cls in defined_spans:
+                    if _overlaps(cand.char_start, cand.char_end, ds, de):
+                        reason = cls
+                        break
             if reason is None and _in_neg_or_modal_scope(span.root):
                 reason = "scope"
         if reason is None:

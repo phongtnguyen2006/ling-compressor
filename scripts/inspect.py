@@ -94,12 +94,14 @@ def main(argv: list[str] | None = None) -> int:
             doc = parse(block.text)
             cands = enumerate_candidates(doc)
             survivors, vetoes = veto(doc, cands, pl, defined)
+            survivor_ids = {id(c) for c in survivors}
             veto_by_range = {(v.span.start, v.span.end): v.protect_class for v in vetoes}
             for c in cands:
                 start = block.start + c.char_start
-                mark = "SURVIVOR"
-                reason = veto_by_range.get((c.char_start, c.char_end))
-                if reason is not None:
+                if id(c) in survivor_ids:
+                    mark = "SURVIVOR"
+                else:
+                    reason = veto_by_range.get((c.char_start, c.char_end))
                     mark = f"VETOED:{reason}"
                 print(f"    [{c.deprel:9}] {mark:16} {start:>6}: {c.text!r}")
 

@@ -167,6 +167,35 @@ def test_nested_modal_aux_is_vetoed(modal):
     )
 
 
+def test_only_if_particle_is_not_left_behind():
+    survivors, vetoes, classes = _veto_reasons(
+        "Payment is due only if the tenant vacates the premises."
+    )
+    # no surviving candidate may be a bare focus particle of "only if"
+    assert not any(c.text.strip().lower() == "only" for c in survivors)
+
+
+def test_at_least_particle_is_not_left_behind():
+    survivors, vetoes, classes = _veto_reasons(
+        "The refund applies at least once per quarter."
+    )
+    assert not any(c.text.strip().lower() == "at" for c in survivors)
+
+
+def test_multiword_defined_term_subword_is_vetoed():
+    # spaCy tags "Reimbursable" as a standalone amod candidate here (no
+    # candidate spans the whole "Reimbursable Amount" phrase), so this
+    # exercises the char-span-overlap fix directly: the fragment must still
+    # be struck even though it doesn't contain the full defined term.
+    survivors, vetoes, classes = _veto_reasons(
+        "A Reimbursable Amount was credited to the account.",
+        defined=frozenset({"Reimbursable Amount"}),
+    )
+    # no fragment of the defined term may survive
+    assert not any("reimbursable" in c.text.lower() for c in survivors)
+    assert "defined_term" in classes
+
+
 def test_veto_partitions_candidates():
     doc = parse("The committee approved a budget of $2 million in the morning.")
     cands = enumerate_candidates(doc)
