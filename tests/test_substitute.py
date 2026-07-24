@@ -1,15 +1,13 @@
 import yaml
-from pathlib import Path
+from importlib.resources import files
 
 from promptcomp.substitute import substitute, load_substitutions, SubstituteResult
 
-DATA = Path(__file__).resolve().parents[1] / "data" / "substitutions.yaml"
 
-
-def test_substitutions_file_loads_and_has_phrases():
-    doc = yaml.safe_load(DATA.read_text())
-    assert "version" in doc
-    assert isinstance(doc["phrases"], dict)
+def test_substitutions_file_is_packaged():
+    data = files("promptcomp").joinpath("data/substitutions.yaml").read_text()
+    doc = yaml.safe_load(data)
+    assert doc["version"].startswith("sub-")
     assert doc["phrases"]["in order to"] == "to"
     assert doc["phrases"]["due to the fact that"] == "because"
 
