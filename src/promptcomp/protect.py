@@ -9,8 +9,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
+import re
 
 import yaml
+
+# Currency/optional-thousands/optional-decimal/optional-percent numeric literal.
+_NUMBER_RE = re.compile(r"\$?\d[\d,]*(?:\.\d+)?%?")
+
+# Negation words treated as protected. Matched as whole words, case-insensitive.
+_NEGATION_WORDS = frozenset(
+    {"not", "no", "never", "without", "nor", "neither", "none", "cannot"}
+)
+_NEGATION_RE = re.compile(
+    r"\b(" + "|".join(sorted(_NEGATION_WORDS, key=len, reverse=True)) + r")\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -46,3 +59,13 @@ def load_protect_list(path: str | Path | None = None) -> ProtectList:
 def load_defined_terms(path: str | Path | None = None) -> tuple[frozenset[str], str]:
     doc = _read_resource("defined_terms.yaml", path)
     return frozenset(doc.get("terms", []) or []), str(doc.get("version", ""))
+
+
+def extract_numbers(text: str) -> list[str]:
+    """Every numeric literal in document order (the invariant multiset)."""
+    return _NUMBER_RE.findall(text)
+
+
+def extract_negations(text: str) -> list[str]:
+    """Every negation-word occurrence, lowercased, in document order."""
+    return [m.group(0).lower() for m in _NEGATION_RE.finditer(text)]

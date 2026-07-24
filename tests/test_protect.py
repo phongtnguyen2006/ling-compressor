@@ -33,3 +33,35 @@ def test_load_defined_terms_default():
     terms, version = load_defined_terms()
     assert isinstance(terms, frozenset)
     assert version.startswith("defined-")
+
+
+from promptcomp.protect import extract_numbers, extract_negations
+
+
+def test_extract_numbers_covers_currency_percent_decimals():
+    text = "The fee is $1,000.00, a 15% surcharge, and 42 units at $0.67 each."
+    nums = extract_numbers(text)
+    assert "$1,000.00" in nums
+    assert "15%" in nums
+    assert "42" in nums
+    assert "$0.67" in nums
+
+
+def test_extract_numbers_is_multiset_ordered():
+    text = "5 and 5 and 10."
+    assert extract_numbers(text) == ["5", "5", "10"]
+
+
+def test_extract_negations_finds_all_forms():
+    text = "It is not allowed; no exceptions, never waived, without consent."
+    negs = extract_negations(text)
+    assert "not" in negs
+    assert "no" in negs
+    assert "never" in negs
+    assert "without" in negs
+
+
+def test_extract_negations_word_boundary():
+    # "nothing" contains "no" but must not count as a bare "no".
+    text = "There is nothing here."
+    assert "no" not in extract_negations(text)
