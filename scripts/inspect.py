@@ -41,6 +41,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-substitute", action="store_true", help="Disable Stage 4.")
     parser.add_argument("--out", type=str, default=None, help="Write JSON result here.")
     parser.add_argument("--cache-path", type=str, default=None, help="Token cache db.")
+    parser.add_argument(
+        "--show-candidates", action="store_true",
+        help="Parse each PROSE block and list enumerated deletable candidates.",
+    )
     args = parser.parse_args(argv)
 
     if args.stdin:
@@ -69,6 +73,21 @@ def main(argv: list[str] | None = None) -> int:
         print("warnings      :")
         for w in result.warnings:
             print(f"    - {w}")
+
+    if args.show_candidates:
+        from promptcomp.segment import segment
+        from promptcomp.types import BlockKind
+        from promptcomp.parse import parse, enumerate_candidates
+
+        print("candidates    :")
+        for block in segment(text):
+            if block.kind is not BlockKind.PROSE:
+                continue
+            doc = parse(block.text)
+            for c in enumerate_candidates(doc):
+                # offset-adjust into the original document
+                start = block.start + c.char_start
+                print(f"    [{c.deprel:9}] {start:>6}: {c.text!r}")
 
     if args.out:
         Path(args.out).write_text(json.dumps(_result_to_dict(result), indent=2))

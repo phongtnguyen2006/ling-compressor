@@ -51,3 +51,16 @@ def test_cli_runs_as_documented_command(tmp_path):
     )
     assert proc.returncode == 0, proc.stderr
     assert "tokens" in proc.stdout.lower()
+
+
+def test_show_candidates_lists_prose_candidates(tmp_path, capsys):
+    doc = tmp_path / "doc.txt"
+    doc.write_text("The committee approved the budget in the morning.\n")
+    rc = inspect_cli.main(
+        ["--file", str(doc), "--show-candidates", "--min-tokens", "0",
+         "--cache-path", str(tmp_path / "c.sqlite")]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "candidates" in out.lower()
+    assert "in the morning" in out
