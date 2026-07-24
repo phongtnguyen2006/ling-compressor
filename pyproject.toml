@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "promptcomp"
+version = "0.1.0"
+description = "Local, deterministic, non-generative linguistic prompt compressor"
+requires-python = ">=3.12"
+dependencies = [
+    "tiktoken>=0.7",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+llmlingua = ["llmlingua>=0.2", "torch>=2"]
+dev = ["pytest>=8", "hypothesis>=6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
