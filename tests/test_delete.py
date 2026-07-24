@@ -119,3 +119,22 @@ def test_apply_deletions_rejects_overlapping():
     c2 = Candidate(deprel="advmod", char_start=5, char_end=10, head_text="y", text="y"*5, n_tokens=1)
     with pytest.raises(ValueError):
         apply_deletions("x"*30, [(c1, 0.1), (c2, 0.2)])
+
+
+def test_deletion_drops_right_leading_orphan_comma():
+    text = "Reportedly, they left the building quietly."
+    doc = parse(text)
+    cands = enumerate_candidates(doc)
+    adv = next(c for c in cands if c.text == "Reportedly")
+    out, _ = apply_deletions(text, [(adv, 0.1)])
+    assert not out.lstrip().startswith(",")
+    assert ".," not in out
+
+
+def test_deletion_no_period_comma_across_sentences():
+    text = "He left early. Reportedly, they arrived late."
+    doc = parse(text)
+    cands = enumerate_candidates(doc)
+    adv = next(c for c in cands if c.text == "Reportedly")
+    out, _ = apply_deletions(text, [(adv, 0.1)])
+    assert ".," not in out

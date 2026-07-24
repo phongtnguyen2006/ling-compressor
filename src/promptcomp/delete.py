@@ -24,6 +24,13 @@ def _join_seam(left: str, right: str) -> str:
     l = left.rstrip(" \t")
     r = right.lstrip(" \t")
     had_space = (left != l) or (right != r)
+    # Right-leading orphaned comma: the deleted clause sat before this comma and
+    # nothing valid now precedes it (start of text, or a preceding terminal/open punct).
+    if r[:1] == "," and (not l or l[-1] in ".!?;:([{"):
+        r = r[1:].lstrip(" \t")
+    # If nothing survives on the left, the right side stands alone.
+    if not l:
+        return r
     # Orphaned comma left behind by a deleted clause: drop it if the surviving
     # right side begins with terminal/close/other punctuation (incl. another comma).
     if l.endswith(",") and r[:1] in _COMMA_ABSORB:
