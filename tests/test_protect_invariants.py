@@ -13,13 +13,40 @@ from promptcomp.types import BlockKind
 _SAMPLES = Path(__file__).resolve().parents[1] / "data" / "samples"
 CORPUS = [p.read_text() for p in sorted(_SAMPLES.glob("*.txt"))]
 
-# Curated sentences that stress each protected class.
+_MEMO1 = next(p.read_text() for p in _SAMPLES.glob("*.txt") if p.name == "memo1.txt")
+_POLICY_SNIP = next(p.read_text() for p in _SAMPLES.glob("*.txt") if p.name == "policy_snip.txt")
+
+# Curated sentences that stress each protected class. Each must be checked
+# empirically: some are deliberately over-protected (modal/negation scope
+# swallows the whole sentence) and are kept anyway to exercise that path,
+# but the majority must actually delete something at ratio 0.4, or the
+# invariant assertions below would pass vacuously (see DELETING_DOCS).
 CURATED = [
-    "The Company shall reimburse expenses of $2,500 within thirty days after approval.",
+    # Deletable relative clause ("who arrived early that rainy morning")
+    # alongside a protected amount and a protected negation.
+    "The auditor, who arrived early that rainy morning, confirmed the balance of $4,200 without objection.",
+    # Heavily protected: modal ("may not") + negation + percent — the whole
+    # sentence sits inside modal/negation scope, so nothing survives to
+    # delete. Kept intentionally to exercise the over-protection path.
     "Employees may not claim more than 15% above the standard rate in any month.",
     "No exception applies unless approved in writing by the regional director beforehand.",
-    "Acme Corporation must deliver the goods no later than March 3, 2026, without fail.",
-    "The vendor, acting in good faith, will provide at least two reports before the deadline.",
+    # Deletable relative clause alongside a protected date and negation.
+    "The auditor, arriving early that rainy morning, confirmed compliance on March 3, 2026, without exception.",
+    # Deletable relative clause alongside a protected amount and negation.
+    "The manager, who reviewed the file carefully, approved the invoice for $3,750 without further delay.",
+]
+
+# Docs/sentences empirically confirmed (see below) to produce at least one
+# deletion at target_ratio=0.4, min_tokens=0. This guards against the whole
+# invariant suite silently degrading into a vacuous no-op suite if the
+# scoring/deletion logic changes such that nothing is ever deleted.
+DELETING_DOCS = [
+    _MEMO1,
+    _POLICY_SNIP,
+    CURATED[0],
+    CURATED[2],
+    CURATED[3],
+    CURATED[4],
 ]
 
 
@@ -47,7 +74,7 @@ def test_negation_count_non_decreasing(doc, ratio):
 def test_no_vetoed_class_token_deleted(doc):
     # Every negation and number present originally must still be present.
     result = compress(doc, target_ratio=0.4, min_tokens=0)
-    assert set(extract_numbers(result.original)) <= set(extract_numbers(result.compressed))
+    assert Counter(extract_numbers(result.compressed)) >= Counter(extract_numbers(result.original))
     assert Counter(extract_negations(result.compressed)) >= Counter(extract_negations(result.original))
 
 
@@ -57,6 +84,27 @@ def test_passthrough_blocks_byte_identical(doc):
     for block in segment(result.original):
         if block.kind is BlockKind.PASSTHROUGH:
             assert block.text in result.compressed
+
+
+@pytest.mark.parametrize("doc", DELETING_DOCS)
+def test_deletion_actually_occurs(doc):
+    result = compress(doc, target_ratio=0.4, min_tokens=0)
+    assert len(result.deleted) > 0, "fixture no longer exercises deletion; invariants would be vacuous"
+
+
+PASSTHROUGH_DOC = (
+    "The committee approved the annual budget in the morning after a long debate.\n"
+    "```\nx = in order to stay\n```\n"
+    "The vendor delivered the goods quickly and without any delay.\n"
+)
+
+
+def test_passthrough_present_and_byte_identical():
+    result = compress(PASSTHROUGH_DOC, target_ratio=0.4, min_tokens=0)
+    blocks = [b for b in segment(PASSTHROUGH_DOC) if b.kind is BlockKind.PASSTHROUGH]
+    assert blocks, "fixture must contain a passthrough block"
+    for b in blocks:
+        assert b.text in result.compressed
 
 
 @settings(max_examples=40, deadline=None)
