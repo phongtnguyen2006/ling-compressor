@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 from importlib.util import spec_from_file_location, module_from_spec
 from pathlib import Path
@@ -36,3 +37,17 @@ def test_main_stdin(tmp_path, monkeypatch, capsys):
     assert rc == 0
     captured = capsys.readouterr()
     assert "tokens" in captured.out.lower()
+
+
+def test_cli_runs_as_documented_command(tmp_path):
+    repo = Path(__file__).resolve().parents[1]
+    doc = tmp_path / "doc.txt"
+    doc.write_text("We proceeded in order to finish the quarterly report quickly.\n")
+    proc = subprocess.run(
+        [sys.executable, str(repo / "scripts" / "inspect.py"),
+         "--file", str(doc), "--min-tokens", "0",
+         "--cache-path", str(tmp_path / "c.sqlite")],
+        capture_output=True, text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "tokens" in proc.stdout.lower()

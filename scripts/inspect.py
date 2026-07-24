@@ -6,10 +6,18 @@ Usage:
 """
 from __future__ import annotations
 
+import os
+import sys
+
+# This file is named inspect.py; when run directly, its own directory sits on
+# sys.path[0] and would shadow the stdlib `inspect` module that dataclasses and
+# others import during our own import phase. Drop it so stdlib wins.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path[:] = [p for p in sys.path if os.path.abspath(p or ".") != _HERE]
+
 import argparse
 import dataclasses
 import json
-import sys
 from pathlib import Path
 
 # Make the src-layout package importable when run as a loose script.
