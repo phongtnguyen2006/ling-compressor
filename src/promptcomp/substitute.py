@@ -9,12 +9,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from importlib.resources import files
 
 import yaml
 
 from .types import Substitution
-
-_DEFAULT_PATH = Path(__file__).resolve().parents[2] / "data" / "substitutions.yaml"
 
 
 @dataclass(frozen=True)
@@ -25,8 +24,11 @@ class SubstituteResult:
 
 
 def load_substitutions(path: str | Path | None = None) -> tuple[dict[str, str], str]:
-    p = Path(path) if path is not None else _DEFAULT_PATH
-    doc = yaml.safe_load(p.read_text())
+    if path is not None:
+        text = Path(path).read_text()
+    else:
+        text = files("promptcomp").joinpath("data/substitutions.yaml").read_text()
+    doc = yaml.safe_load(text)
     return dict(doc.get("phrases", {})), str(doc.get("version", ""))
 
 

@@ -1,0 +1,4 @@
+# Project-specific defined terms that must never be deleted. Extend per corpus.
+# Auto-extraction from definition patterns (Stage 0) supplements this at runtime.
+version: "defined-2026-07-24.1"
+terms: []

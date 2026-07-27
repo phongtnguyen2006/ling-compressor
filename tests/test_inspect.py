@@ -51,3 +51,44 @@ def test_cli_runs_as_documented_command(tmp_path):
     )
     assert proc.returncode == 0, proc.stderr
     assert "tokens" in proc.stdout.lower()
+
+
+def test_show_candidates_lists_prose_candidates(tmp_path, capsys):
+    doc = tmp_path / "doc.txt"
+    doc.write_text("The committee approved the budget in the morning.\n")
+    rc = inspect_cli.main(
+        ["--file", str(doc), "--show-candidates", "--min-tokens", "0",
+         "--cache-path", str(tmp_path / "c.sqlite")]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "candidates" in out.lower()
+    assert "in the morning" in out
+
+
+def test_show_candidates_marks_vetoed(tmp_path, capsys):
+    doc = tmp_path / "doc.txt"
+    doc.write_text("The committee approved a budget of $2 million in the morning.\n")
+    rc = inspect_cli.main(
+        ["--file", str(doc), "--show-candidates", "--min-tokens", "0",
+         "--cache-path", str(tmp_path / "c.sqlite")]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "VETOED" in out          # the money PP is struck
+    assert "number" in out          # with its reason
+    assert "SURVIVOR" in out        # "in the morning" survives
+
+
+def test_inspect_prints_deletions(tmp_path, capsys):
+    doc = tmp_path / "doc.txt"
+    doc.write_text(
+        "The committee approved the annual budget in the morning after a long debate.\n"
+    )
+    rc = inspect_cli.main(
+        ["--file", str(doc), "--ratio", "0.5", "--min-tokens", "0",
+         "--cache-path", str(tmp_path / "c.sqlite")]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "deleted" in out.lower()

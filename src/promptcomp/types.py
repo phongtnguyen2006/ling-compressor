@@ -50,6 +50,16 @@ class Substitution:
 
 
 @dataclass(frozen=True)
+class Candidate:
+    deprel: str
+    char_start: int
+    char_end: int
+    head_text: str
+    text: str
+    n_tokens: int
+
+
+@dataclass(frozen=True)
 class CompressionResult:
     original: str
     compressed: str
