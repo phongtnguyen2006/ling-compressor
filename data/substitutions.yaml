@@ -1,0 +1,21 @@
+version: "sub-2026-07-23.1"
+
+# One-way-safe phrase shortening. Keys matched case-insensitively as whole
+# words; longer keys are applied before shorter overlapping ones.
+phrases:
+  "in order to": "to"
+  "due to the fact that": "because"
+  "at this point in time": "now"
+  "for the purpose of": "for"
+  "in the event that": "if"
+  "with regard to": "about"
+  "in the near future": "soon"
+  "a large number of": "many"
+  "at the present time": "now"
+  "in spite of the fact that": "although"
+  "on a daily basis": "daily"
+  "in the majority of cases": "usually"
+  "has the ability to": "can"
+  "is able to": "can"
+  "prior to": "before"
+  "subsequent to": "after"
