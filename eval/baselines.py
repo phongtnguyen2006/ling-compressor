@@ -61,15 +61,32 @@ class OursCompressor:
         return Compressed(text=result.compressed, latency_ms=(time.perf_counter() - t0) * 1000)
 
 
+def _best_device() -> str:
+    """Pick an available torch device. LLMLingua defaults to cuda, which is absent
+    on Apple Silicon / CPU-only hosts and raises at construction time."""
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
+    if torch.cuda.is_available():
+        return "cuda"
+    if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
 class LLMLingua2Compressor:
     name = "llmlingua2"
 
-    def __init__(self) -> None:
+    def __init__(self, device_map: str | None = None) -> None:
         from llmlingua import PromptCompressor  # raises ImportError if absent
 
+        if device_map is None:
+            device_map = _best_device()
         self._pc = PromptCompressor(
             model_name="microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank",
             use_llmlingua2=True,
+            device_map=device_map,
         )
 
     def compress(self, text: str, ratio: float) -> Compressed:
