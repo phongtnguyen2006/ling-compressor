@@ -55,3 +55,32 @@ NOT a context-length artifact: short docs (72/79 tok, under BERT's 512) still sh
 => Strengthens the case for the hybrid (route protected sentences to ours, rest to llmlingua2).
 Fix required: LLMLingua defaults device_map=cuda -> raises on Apple Silicon, baseline was
 silently skipped by available_baselines()'s except. Now auto-detects cuda->mps->cpu (9c25bb4).
+
+## SCORER v2 (2026-07-28): IDF rarity + position — measured compression cost
+A/B of the old formula `prior*(0.5+density)*(1+avg_len/10)` vs the new
+`prior*(0.5+density)*(1+RW*rarity)*(1+PB*(1-rel_pos))`, ratio 0.5, data/samples:
+
+  sample            old     new    delta
+  memo1.txt        0.866   0.871   +0.005
+  notice_snip.txt  1.000   1.000    0.000
+  policy_snip.txt  0.848   0.899   +0.051   <-- real regression
+
+policy_snip is the interesting one. Old deleted one clean 6-token adjunct,
+`'In the ordinary course of business'`; new deletes two fragments,
+`'ordinary'` + `'of business'` — worse ratio AND worse grammaticality.
+
+CAUSE (measured, not assumed): NOT the new terms. Sweeping RARITY_WEIGHT over
+{0, .25, .5, 1} and POS_BETA over {0, .1, .25, .5} leaves all three ratios
+byte-identical (0.871 / 1.000 / 0.899) — on this corpus the new signals move
+scores but never enough to change greedy selection's outcome. The delta comes
+from *removing* the old unbounded `avg_len` term, which reordered candidates.
+(A code reviewer attributed it to the position term; that is falsified above.)
+
+Not treated as a blocker: n=3 samples, and avg_len was a crude proxy whose
+unboundedness (a 30-char word gives factor 4.0) broke even the conditional
+factor bound the new formula relies on. But the compression cost is real and
+the offsetting quality gain is UNMEASURABLE until the model-graded eval runs
+(needs ANTHROPIC_API_KEY). Re-measure at corpus scale before defending v2.
+Suspected real culprit is `select_deletions` ranking by raw cost rather than
+cost-per-token, which biases against large spans — that is the deferred
+PartPrompt tree-knapsack DP's job to fix.

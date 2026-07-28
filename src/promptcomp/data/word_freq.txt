@@ -1,9 +1,11 @@
 # promptcomp word-frequency rarity table
 # version: norvig-count1w-top30k-v1
 # source: Norvig count_1w.txt (Google Web Trillion-Word Corpus unigram counts, https://norvig.com/ngrams/); see word_freq.LICENSE
+# source sha256: 51df159fd3de12b20e403c108f526e96dbd723d9cabdd5f17955cdc16059e690
 # entries: 30000 (top alphabetic unigrams by frequency)
 # format: <word>\t<rarity_milli>  where rarity_milli in [0,1000], 0 = most common (cheap to delete), 1000 = rarest in table (dear)
 # rarity = minmax-normalized log-frequency; corpus total cancels, so runtime needs no math.log and stays byte-deterministic.
+# Regenerate with: python scripts/build_word_freq.py <count_1w.txt> <out>
 the	0
 of	55
 and	56
