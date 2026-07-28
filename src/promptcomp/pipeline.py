@@ -54,6 +54,7 @@ def compress(
         min_tokens=min_tokens,
         max_deletion_fraction=max_deletion_fraction,
         scorer=scorer.name,
+        scorer_version=getattr(scorer, "version", ""),
         protect_list_version=protect_list.version,
         sub_version=sub_version,
         counter=counter.name,

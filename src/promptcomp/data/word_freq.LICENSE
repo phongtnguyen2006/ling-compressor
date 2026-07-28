@@ -1,0 +1,39 @@
+word_freq.txt — provenance and license
+=======================================
+
+Contents
+--------
+`word_freq.txt` is a derived table mapping the top 30,000 alphabetic English
+unigrams to a min-max-normalized log-frequency "rarity" value in [0, 1000]
+(0 = most common, 1000 = rarest in the table). It is used by
+`promptcomp.scoring.heuristic.HeuristicScorer` as a deterministic corpus-rarity
+signal (a tf-idf-style word-importance weight, cf. Filippova & Strube 2008).
+
+Source
+------
+Derived from Peter Norvig's `count_1w.txt` unigram frequency list:
+    https://norvig.com/ngrams/
+
+That list reports counts from the Google Web Trillion-Word Corpus, published by
+Norvig alongside the book chapter "Natural Language Corpus Data" (in *Beautiful
+Data*, O'Reilly, 2009). The underlying token counts are from Google's
+Web 1T 5-gram corpus.
+
+Derivation
+----------
+Only the raw integer counts were used. For the top 30,000 purely-alphabetic
+lowercase words by frequency, rarity was computed as the min-max-normalized
+negative log-frequency:
+
+    rarity(w) = (log(count_max) - log(count(w))) / (log(count_max) - log(count_min))
+
+and stored as `round(rarity * 1000)`. The corpus total cancels under min-max
+normalization, so no absolute frequencies are reproduced here — only relative
+rarity ranks. The runtime performs no logarithms.
+
+Use
+---
+The counts are published by Norvig for free use. This derived table redistributes
+only normalized relative-rarity ranks (not the original counts) for the internal
+scoring heuristic. If you require a differently-licensed frequency source, the
+generator can be re-pointed at any unigram list; see the project notes.
