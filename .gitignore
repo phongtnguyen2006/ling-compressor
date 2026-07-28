@@ -9,3 +9,9 @@ dist/
 .token_cache.sqlite
 eval/results/
 .DS_Store
+
+# Local Obsidian vault. Intentionally untracked: it symlinks the repo's own
+# markdown in (those files are tracked here, at their real paths) and otherwise
+# holds personal notes, vault config, and course PDFs that don't belong in a
+# public repo. See "Ling Compressor MOC" in the vault.
+LingTokenOptimizer/

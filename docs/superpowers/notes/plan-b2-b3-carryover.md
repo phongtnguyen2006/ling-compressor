@@ -47,8 +47,8 @@
 memo1 (1282 tok): ours 0.872 ratio / 0 violations. llmlingua2 0.724@r0.7 / 65 viol,
 0.513@r0.5 / 92 viol, 0.319@r0.3 / 106 viol. stopword 0.755 / 22 viol.
 llmlingua2 destroys (r0.5): must x10, not x9, all x7, any x6, shall x2, may x2,
-no x2, unless, if, in the event, without + money ($25.00, $185.00 x2, $120.00,
-$65.00, $55.00...). Also mangles "$5,000" -> "$ 5, 000".
+no x2, unless, if, in the event, without + money (`$25.00`, `$185.00` x2, `$120.00`,
+`$65.00`, `$55.00`...). Also mangles `$5,000` -> `$ 5, 000`.
 NOT a context-length artifact: short docs (72/79 tok, under BERT's 512) still show 11-13 viol.
 => The differentiator is real and strong. Compression gap (0.87 vs 0.32) is the honest cost;
    whether it is worth paying depends on accuracy retention, still unmeasured (needs API key).
