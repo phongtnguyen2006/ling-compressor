@@ -42,3 +42,16 @@
   rule (clause-local rather than ancestor-chain) — but ONLY with invariant tests proving no under-veto.
 - Re-add per-stage timings (segment/parse/veto/score/delete/substitute) to pipeline.timings_ms for
   the inspect "per-stage timing" requirement (spec 5); dropped during the B3 rewrite.
+
+## M7 RESULT (2026-07-27): llmlingua2 baseline measured — spec §7.4 hypothesis CONFIRMED
+memo1 (1282 tok): ours 0.872 ratio / 0 violations. llmlingua2 0.724@r0.7 / 65 viol,
+0.513@r0.5 / 92 viol, 0.319@r0.3 / 106 viol. stopword 0.755 / 22 viol.
+llmlingua2 destroys (r0.5): must x10, not x9, all x7, any x6, shall x2, may x2,
+no x2, unless, if, in the event, without + money ($25.00, $185.00 x2, $120.00,
+$65.00, $55.00...). Also mangles "$5,000" -> "$ 5, 000".
+NOT a context-length artifact: short docs (72/79 tok, under BERT's 512) still show 11-13 viol.
+=> The differentiator is real and strong. Compression gap (0.87 vs 0.32) is the honest cost;
+   whether it is worth paying depends on accuracy retention, still unmeasured (needs API key).
+=> Strengthens the case for the hybrid (route protected sentences to ours, rest to llmlingua2).
+Fix required: LLMLingua defaults device_map=cuda -> raises on Apple Silicon, baseline was
+silently skipped by available_baselines()'s except. Now auto-detects cuda->mps->cpu (9c25bb4).
