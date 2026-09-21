@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A local visual workbench for the Ling Compressor.">
+    <title>Ling Compressor Workbench</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="masthead">
+      <a class="wordmark" href="#top" aria-label="Ling Compressor home">
+        <span class="wordmark-glyph" aria-hidden="true">⌫</span>
+        <span>Ling Compressor</span>
+      </a>
+      <nav class="view-tabs" role="tablist" aria-label="Website views">
+        <button id="workbench-tab" class="view-tab" type="button" role="tab" aria-selected="true" aria-controls="workbench-view" data-view="workbench">Workbench</button>
+        <button id="system-tab" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="system-view" data-view="system">How it works</button>
+      </nav>
+      <p>Local · deterministic · protected</p>
+    </header>
+
+    <main id="top">
+      <div id="workbench-view" class="view-panel" role="tabpanel" aria-labelledby="workbench-tab">
+        <section class="intro" aria-labelledby="page-title">
+        <div>
+          <h1 id="page-title">See what survives<br>the edit.</h1>
+          <p class="lede">Paste a sentence or open an example. Every cut stays visible, and protected language remains traceable.</p>
+        </div>
+        <div class="legend" aria-label="Annotation legend">
+          <span><i class="swatch cut"></i>Removed</span>
+          <span><i class="swatch protected"></i>Protected</span>
+          <span><i class="swatch substituted"></i>Shortened</span>
+        </div>
+        </section>
+
+        <section class="examples" aria-labelledby="examples-title">
+        <div class="section-heading">
+          <h2 id="examples-title">Example shelf</h2>
+          <p>Choose a document to load it into the workbench.</p>
+        </div>
+        <div id="example-list" class="example-list" aria-live="polite">
+          <p class="loading-line">Reading local examples…</p>
+        </div>
+        </section>
+
+        <section class="workbench" aria-labelledby="workbench-title">
+        <div class="workbench-bar">
+          <div>
+            <h2 id="workbench-title">Compression workbench</h2>
+            <p>Short input is allowed here so you can test a single sentence.</p>
+          </div>
+          <div class="controls">
+            <label for="ratio">Keep <output id="ratio-output" for="ratio">60%</output></label>
+            <input id="ratio" type="range" min="10" max="100" step="5" value="60">
+            <label class="check-control"><input id="substitute" type="checkbox" checked> Shorten phrases</label>
+          </div>
+        </div>
+
+        <form id="compress-form">
+          <label class="input-label" for="source-text">Your text</label>
+          <textarea id="source-text" rows="8" spellcheck="true">The committee, after a long and unusually detailed discussion in the morning, approved the annual budget in order to begin the project quickly.</textarea>
+          <div class="form-footer">
+            <span id="character-count">0 characters</span>
+            <button id="compress-button" type="submit">Compress text</button>
+          </div>
+        </form>
+
+        <div id="error-message" class="error-message" role="alert" hidden></div>
+
+        <section id="result" class="result" aria-live="polite" hidden>
+          <div class="compression-ruler" aria-label="Compression result summary">
+            <div class="ruler-track"><span id="ruler-fill"></span></div>
+            <div class="ruler-labels">
+              <strong><span id="tokens-after">0</span> tokens remain</strong>
+              <span><span id="tokens-saved">0</span> removed · <span id="time-taken">0</span> ms</span>
+            </div>
+          </div>
+
+          <div class="text-compare">
+            <article>
+              <header><h3>Original, annotated</h3><span id="original-count"></span></header>
+              <div id="annotated-text" class="text-panel"></div>
+            </article>
+            <article>
+              <header><h3>Compressed</h3><span id="compressed-count"></span></header>
+              <div id="compressed-text" class="text-panel compressed-panel"></div>
+            </article>
+          </div>
+
+          <div class="audit-strip">
+            <div><strong id="deletion-count">0</strong><span>cuts made</span></div>
+            <div><strong id="protected-count">0</strong><span>spans protected</span></div>
+            <div><strong id="substitution-count">0</strong><span>phrases shortened</span></div>
+          </div>
+
+          <details>
+            <summary>Open the audit trail</summary>
+            <div id="audit-list" class="audit-list"></div>
+          </details>
+        </section>
+        </section>
+      </div>
+
+      <div id="system-view" class="view-panel system-view" role="tabpanel" aria-labelledby="system-tab" hidden>
+        <section class="system-intro" aria-labelledby="system-title">
+          <div>
+            <h1 id="system-title">A guarded path<br>to fewer tokens.</h1>
+            <p class="lede">The compressor narrows what it is allowed to touch before it decides what to remove. Follow the solid line for prose and the lower lanes for content that bypasses deletion.</p>
+          </div>
+          <div class="system-key" aria-label="System diagram key">
+            <span><i class="key-line active"></i>Active transform</span>
+            <span><i class="key-line safe"></i>Safety bypass</span>
+            <span><i class="key-line rejected"></i>Rejected deletion</span>
+          </div>
+        </section>
+
+        <section class="schematic" aria-labelledby="schematic-title">
+          <header class="schematic-header">
+            <div>
+              <h2 id="schematic-title">Compression data plane</h2>
+              <p>One document enters. Every branch rejoins before the audited result leaves.</p>
+            </div>
+            <span class="system-state"><i></i>Deterministic run</span>
+          </header>
+
+          <div class="diagram-scroll" tabindex="0" aria-label="Scrollable compressor system diagram">
+            <div class="flow-diagram">
+              <div class="bus-caption input-caption">Input bus</div>
+              <div class="flow-node terminal-node">
+                <span class="node-index">IN</span>
+                <strong>Document</strong>
+                <code>text: str</code>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node">
+                <span class="node-index">1</span>
+                <strong>Segment</strong>
+                <small>Classify blocks</small>
+                <code>segment.py</code>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node">
+                <span class="node-index">2</span>
+                <strong>Parse</strong>
+                <small>Find whole subtrees</small>
+                <code>parse.py</code>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node safety-node">
+                <span class="node-index">3</span>
+                <strong>Protect gate</strong>
+                <small>Hard veto</small>
+                <code>protect.py</code>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node">
+                <span class="node-index">4</span>
+                <strong>Rank + budget</strong>
+                <small>Cheapest first</small>
+                <code>scoring/</code>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node">
+                <span class="node-index">5</span>
+                <strong>Substitute</strong>
+                <small>Safe shortening</small>
+                <code>substitute.py</code>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">→</div>
+              <div class="flow-node terminal-node output-node">
+                <span class="node-index">OUT</span>
+                <strong>Result</strong>
+                <code>CompressionResult</code>
+              </div>
+
+              <div class="bypass-lane passthrough-lane">
+                <span class="branch-drop" aria-hidden="true"></span>
+                <div class="lane-label"><strong>Passthrough lane</strong><span>code · tables · paths · structured blocks</span></div>
+                <div class="lane-rule"><span>byte-identical</span></div>
+                <span class="branch-rise" aria-hidden="true"></span>
+              </div>
+
+              <div class="bypass-lane protected-lane">
+                <span class="branch-drop" aria-hidden="true"></span>
+                <div class="lane-label"><strong>Protected lane</strong><span>numbers · negation · entities · obligations</span></div>
+                <div class="lane-rule"><span>never deleted</span></div>
+                <span class="branch-rise" aria-hidden="true"></span>
+              </div>
+
+              <div class="rejection-port">
+                <span class="reject-line" aria-hidden="true"></span>
+                <div><strong>Deletion denied</strong><span>candidate becomes a veto record</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="system-contract" aria-label="Control and verification plane">
+            <div class="contract-label">Control + verification plane</div>
+            <div class="contract-item">
+              <span>Configuration in</span>
+              <code>ratio · size gate · scorer · protect-list version</code>
+            </div>
+            <div class="contract-link" aria-hidden="true"></div>
+            <div class="contract-item contract-center">
+              <span>Pipeline contract</span>
+              <strong>Structure limits. Protection vetoes. Importance decides.</strong>
+            </div>
+            <div class="contract-link" aria-hidden="true"></div>
+            <div class="contract-item">
+              <span>Evidence out</span>
+              <code>deletions · vetoes · config hash · token counts</code>
+            </div>
+          </div>
+        </section>
+
+        <section class="invariant-band" aria-labelledby="invariant-title">
+          <div>
+            <h2 id="invariant-title">The invariant boundary</h2>
+            <p>The scorer never gets authority over protected spans. Tests compare protected content before and after every run.</p>
+          </div>
+          <code>protected_before == protected_after</code>
+          <span class="invariant-status">Required: zero violations</span>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <p>Runs entirely on this machine. Input is not sent anywhere.</p>
+    </footer>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

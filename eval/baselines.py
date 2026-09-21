@@ -90,8 +90,15 @@ class LLMLingua2Compressor:
         )
 
     def compress(self, text: str, ratio: float) -> Compressed:
+        return self.compress_forced(text, ratio, ())
+
+    def compress_forced(
+        self, text: str, ratio: float, force_tokens: tuple[str, ...] | list[str]
+    ) -> Compressed:
+        """Compress while requiring specific sentinel strings to survive."""
         t0 = time.perf_counter()
-        out = self._pc.compress_prompt(text, rate=ratio, force_tokens=["\n", ".", "?", "!"])
+        forced = ["\n", ".", "?", "!", *force_tokens]
+        out = self._pc.compress_prompt(text, rate=ratio, force_tokens=forced)
         return Compressed(
             text=out["compressed_prompt"], latency_ms=(time.perf_counter() - t0) * 1000
         )
