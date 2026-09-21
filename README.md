@@ -29,6 +29,24 @@ The requested ratio is a target, not a promise. A protection-heavy document may
 remain close to its original size because safety vetoes take precedence over the
 token budget.
 
+## Example compression
+
+With `target_ratio=0.6` and `min_tokens=0`:
+
+```text
+Before (26 tokens)
+The committee, after a long and unusually detailed discussion in the morning,
+approved the annual budget in order to begin the project quickly.
+
+After (17 tokens)
+The committee, after a long and detailed discussion in the morning, approved the
+budget.
+```
+
+The compressor removed `unusually`, `annual`, and
+`in order to begin the project quickly`, saving 9 tokens (34.6%). The result's audit
+trail records each deletion while the time reference remains protected.
+
 ## Quick start
 
 Requires Python 3.12, spaCy, and the `en_core_web_sm` model.
