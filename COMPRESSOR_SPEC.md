@@ -109,11 +109,12 @@ The tests enforce:
 | `ours` | Conservative compressor |
 | `llmlingua2` | Stronger optional competitor |
 
-The bundled three-document result shows zero protected violations and zero parse
-failures for `ours`. On the long memo, `ours` retained about 87% of tokens;
-LLMLingua-2 compressed further but removed protected language. These are directional
-results, not production evidence: accuracy retention is unmeasured and the corpus is
-too small. See `eval/results/report.md` for the current run.
+The bundled three-document run retained 1,259 of 1,433 input tokens (about 88%)
+with zero protected-content violations and zero parse failures for `ours`. On the
+long memo, `ours` retained about 87% of tokens. These are directional results,
+not production evidence: accuracy retention is unmeasured and the corpus is too
+small. See the tracked [evaluation summary](eval/SUMMARY.md) for the per-document
+results and reproduction command. Generated reports go in ignored `eval/results/`.
 
 `eval/hybrid.py` contains two experiments: a sentence router and a clause-level
 sentinel router that restores protected subordinate clauses byte-for-byte and falls
@@ -132,8 +133,8 @@ data/samples/     small public-style evaluation corpus
 
 ## Known limitations
 
-- spaCy and `en_core_web_sm` are required at runtime but are not yet declared in
-  `pyproject.toml`.
+- The spaCy `en_core_web_sm` model must be downloaded separately after package
+  installation; it is not bundled with this repository.
 - Modal and negation scope can extend across coordinated clauses, causing safe but
   weak compression on obligation-heavy text.
 - Deletion selection is greedy by raw score rather than optimized per token or by a

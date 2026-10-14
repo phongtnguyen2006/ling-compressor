@@ -1,13 +1,28 @@
-# promptcomp
+# promptcomp — auditable prompt compression
 
-A local, deterministic compressor for reducing the token cost of long-form English
-prose. It removes low-value grammatical subtrees while preserving protected facts
-such as numbers, negation, obligations, conditions, named entities, and defined
-terms.
+A local Python tool for reducing the token cost of long English documents sent to
+LLMs. It removes selected grammatical phrases and records every deletion, while
+rules protect numbers, negation, obligations, conditions, named entities, and
+defined terms. It also leaves code and other structured blocks untouched.
 
-Unlike a generative summarizer, `promptcomp` does not rewrite the document or invent
-new text. Its priority is an auditable safety boundary rather than the highest
-possible compression ratio.
+The use case is a research workflow that passes lengthy source documents to an
+LLM and needs to inspect what was omitted. `promptcomp` is deterministic and
+extractive: it does not generate a summary or rewrite the source. Its protection
+rules reduce a specific class of omissions; they do not prove that every meaning
+is preserved.
+
+## Project at a glance
+
+- **Input:** long-form English prose, potentially mixed with code, tables, URLs,
+  paths, or other structured content.
+- **Output:** compressed text, token counts, and an audit trail of deletions,
+  substitutions, and protected spans.
+- **Built with:** Python, spaCy dependency parsing, tiktoken, an offline
+  evaluation harness, and a local browser workbench.
+- **Current evidence:** on three bundled documents, the conservative compressor
+  retained 1,259 of 1,433 input tokens (about 88%) with zero protected-content
+  violations recorded by the harness. This small corpus does not establish
+  downstream answer quality. See the [evaluation summary](eval/SUMMARY.md).
 
 ## How it works
 
@@ -49,11 +64,11 @@ trail records each deletion while the time reference remains protected.
 
 ## Quick start
 
-Requires Python 3.12, spaCy, and the `en_core_web_sm` model.
+Requires Python 3.12. The package install includes spaCy; download its English
+model separately:
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m pip install "spacy>=3.7"
 python -m spacy download en_core_web_sm
 ```
 
@@ -161,7 +176,9 @@ python eval/run.py \
 
 The grid compares uncompressed text, naive stopword removal, `promptcomp`, and
 LLMLingua-2 when installed. `protected_violation_count` must remain zero for the
-conservative compressor. The bundled corpus is deliberately small, so its results are
+conservative compressor. Generated reports in `eval/results/` are ignored by Git;
+the tracked [evaluation summary](eval/SUMMARY.md) gives reproducible results for
+the bundled corpus. The corpus is deliberately small, so the results are
 directional rather than production evidence.
 
 Install `.[anthropic]` and set `ANTHROPIC_API_KEY` for model-graded accuracy. Use
