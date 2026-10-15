@@ -6,6 +6,8 @@ const elements = {
   ratio: document.querySelector("#ratio"),
   ratioOutput: document.querySelector("#ratio-output"),
   substitute: document.querySelector("#substitute"),
+  modes: [...document.querySelectorAll('input[name="mode"]')],
+  modeNote: document.querySelector("#mode-note"),
   button: document.querySelector("#compress-button"),
   characterCount: document.querySelector("#character-count"),
   exampleList: document.querySelector("#example-list"),
@@ -89,25 +91,60 @@ function buildAudit(data) {
 }
 
 function renderResult(data) {
+  const hybrid = data.mode === "hybrid_sentinel";
+  document.querySelector("#result-mode").textContent = hybrid
+    ? "Guarded LLMLingua-2 · protected clauses are restored and checked"
+    : "Tree pruning · each cut is recorded below";
+  document.querySelector("#compressed-title").textContent = hybrid ? "Hybrid compressed" : "Compressed";
+  document.querySelector("#original-title").textContent = hybrid ? "Original" : "Original, annotated";
   document.querySelector("#tokens-after").textContent = data.tokens_after;
   document.querySelector("#tokens-saved").textContent = data.saved_tokens;
   document.querySelector("#time-taken").textContent = Math.round(data.timings_ms.total);
   document.querySelector("#ruler-fill").style.width = `${Math.min(100, data.ratio * 100)}%`;
   document.querySelector("#original-count").textContent = `${data.tokens_before} tokens`;
   document.querySelector("#compressed-count").textContent = `${data.tokens_after} tokens · ${data.saved_percent}% saved`;
-  document.querySelector("#annotated-text").innerHTML = annotateOriginal(data.original, data.deleted, data.vetoed);
-  document.querySelector("#compressed-text").innerHTML = annotateCompressed(data.compressed, data.substitutions);
-  document.querySelector("#deletion-count").textContent = data.deleted.length;
-  document.querySelector("#protected-count").textContent = data.vetoed.length;
-  document.querySelector("#substitution-count").textContent = Object.keys(data.substitutions).length;
-  document.querySelector("#audit-list").innerHTML = buildAudit(data);
+  document.querySelector("#annotated-text").innerHTML = hybrid
+    ? escapeHtml(data.original)
+    : annotateOriginal(data.original, data.deleted, data.vetoed);
+  document.querySelector("#compressed-text").innerHTML = hybrid
+    ? escapeHtml(data.compressed)
+    : annotateCompressed(data.compressed, data.substitutions);
+  document.querySelector("#audit-strip").hidden = hybrid;
+  document.querySelector("#audit-details").hidden = hybrid;
+  document.querySelector("#hybrid-report").hidden = !hybrid;
+  if (hybrid) {
+    const stats = data.hybrid_stats;
+    document.querySelector("#masked-count").textContent = stats.masked_sents;
+    document.querySelector("#clean-count").textContent = stats.clean_sents + stats.masked_sents;
+    document.querySelector("#fallback-count").textContent = stats.fallback_sents + stats.validation_fallbacks;
+    document.querySelector("#hybrid-validation").textContent = stats.validation_fallbacks
+      ? `${stats.validation_fallbacks} model result(s) failed validation and used tree pruning instead.`
+      : "Protected clauses were restored and checked. Model edits do not have a word-level audit or a full meaning guarantee.";
+  } else {
+    document.querySelector("#deletion-count").textContent = data.deleted.length;
+    document.querySelector("#protected-count").textContent = data.vetoed.length;
+    document.querySelector("#substitution-count").textContent = Object.keys(data.substitutions).length;
+    document.querySelector("#audit-list").innerHTML = buildAudit(data);
+  }
   elements.result.hidden = false;
+}
+
+function selectedMode() {
+  return elements.modes.find(mode => mode.checked).value;
+}
+
+function updateMode() {
+  const hybrid = selectedMode() === "hybrid_sentinel";
+  elements.substitute.disabled = hybrid;
+  elements.modeNote.textContent = hybrid
+    ? "Experimental. First run loads LLMLingua-2; protected clauses are restored, while model edits have no word-level audit."
+    : "Tree pruning shows each deletion and protection decision.";
 }
 
 async function compressText() {
   elements.error.hidden = true;
   elements.button.disabled = true;
-  elements.button.textContent = "Compressing…";
+  elements.button.textContent = selectedMode() === "hybrid_sentinel" ? "Loading or compressing…" : "Compressing…";
   try {
     const response = await fetch("/api/compress", {
       method: "POST",
@@ -116,6 +153,7 @@ async function compressText() {
         text: elements.source.value,
         target_ratio: Number(elements.ratio.value) / 100,
         substitute: elements.substitute.checked,
+        mode: selectedMode(),
       }),
     });
     const data = await response.json();
@@ -140,6 +178,8 @@ function renderExamples(examples) {
     button.addEventListener("click", () => {
       const example = state.examples.find(item => item.id === button.dataset.exampleId);
       elements.source.value = example.text;
+      elements.modes.find(mode => mode.value === (example.mode || "conservative")).checked = true;
+      updateMode();
       updateCharacterCount();
       document.querySelector("#workbench-title").scrollIntoView({ behavior: "smooth" });
       compressText();
@@ -166,6 +206,7 @@ function updateCharacterCount() {
 elements.form.addEventListener("submit", event => { event.preventDefault(); compressText(); });
 elements.source.addEventListener("input", updateCharacterCount);
 elements.ratio.addEventListener("input", () => { elements.ratioOutput.textContent = `${elements.ratio.value}%`; });
+elements.modes.forEach(mode => mode.addEventListener("change", updateMode));
 elements.tabs.forEach(tab => {
   tab.addEventListener("click", () => setView(tab.dataset.view));
   tab.addEventListener("keydown", event => {
@@ -181,5 +222,6 @@ elements.tabs.forEach(tab => {
 window.addEventListener("popstate", () => setView(location.hash.slice(1), false));
 
 updateCharacterCount();
+updateMode();
 loadExamples();
 setView(location.hash.slice(1), false);

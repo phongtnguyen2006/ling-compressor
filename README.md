@@ -1,5 +1,27 @@
 # promptcomp — auditable prompt compression
 
+## TL;DR
+
+`promptcomp` makes English prose shorter so it uses fewer tokens (the pieces of text
+an AI model reads). It maps each sentence into a tree of connected words and
+phrases, then prunes optional branches while keeping the main message. For example:
+
+```text
+The team approved the plan with great enthusiasm.
+
+approved
+├── the team                 (who)
+├── the plan                 (what)
+└── with great enthusiasm    (extra detail: prune this branch)
+
+The team approved the plan.
+```
+
+With the default token counter, that example goes from 9 tokens to 6.
+It removes whole branches rather than isolated words, so the sentence stays
+readable. Rules protect important details such as numbers, names, negation, and
+conditions; when pruning would risk those details, it leaves them in place.
+
 A local Python tool for reducing the token cost of long English documents sent to
 LLMs. It removes selected grammatical phrases and records every deletion, while
 rules protect numbers, negation, obligations, conditions, named entities, and
@@ -85,6 +107,11 @@ Then open [http://localhost:8000](http://localhost:8000). The website provides:
 - token counts, timing, and a complete audit trail;
 - an engineering diagram of the compression and safety paths.
 
+Choose **Guarded LLMLingua-2** or open the **Hybrid guardrail** sample to try the
+experimental hybrid in the workbench. Install `.[llmlingua]` first; the first run
+loads its model. The hybrid view reports protected-clause and fallback counts rather
+than a word-level deletion audit.
+
 The website permits short examples by disabling the library's normal 500-token size
 gate for interactive requests.
 
@@ -129,6 +156,25 @@ invariants also cover deterministic output, passthrough integrity, contiguous su
 deletion, and grammatical structure.
 
 ## Experimental LLMLingua hybrids
+
+The protection rules can also guide a more aggressive compressor. Here is an
+illustrative pass through the `SentinelHybridCompressor`:
+
+```text
+Original:       The team worked carefully, unless spending exceeds $5,000.
+Protected:      unless spending exceeds $5,000
+Sent to model:  The team worked carefully, KEEPCLAUSEA.
+Model may trim: The team worked KEEPCLAUSEA.
+Restored:       The team worked unless spending exceeds $5,000.
+```
+
+The conditional clause is hidden from LLMLingua-2, then restored exactly. The
+hybrid also requires the main subject and verb to survive. If the model drops or
+moves the marker, loses those anchors, or fails the protected-content check, the
+sentence falls back to `promptcomp`'s conservative compression. A protected main
+clause takes that conservative path directly; sentences without protected content
+can go to LLMLingua-2. This is a guardrail for specific protected details, not a
+guarantee that every nuance survives model compression.
 
 Install the optional backend with:
 

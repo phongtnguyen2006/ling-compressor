@@ -17,7 +17,7 @@
         <button id="workbench-tab" class="view-tab" type="button" role="tab" aria-selected="true" aria-controls="workbench-view" data-view="workbench">Workbench</button>
         <button id="system-tab" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="system-view" data-view="system">How it works</button>
       </nav>
-      <p>Local · deterministic · protected</p>
+      <p>Local · inspectable · protected</p>
     </header>
 
     <main id="top">
@@ -25,7 +25,7 @@
         <section class="intro" aria-labelledby="page-title">
         <div>
           <h1 id="page-title">See what survives<br>the edit.</h1>
-          <p class="lede">Paste a sentence or open an example. Every cut stays visible, and protected language remains traceable.</p>
+          <p class="lede">Paste a sentence or open an example. Compare careful tree pruning with a guarded model pass.</p>
         </div>
         <div class="legend" aria-label="Annotation legend">
           <span><i class="swatch cut"></i>Removed</span>
@@ -58,6 +58,18 @@
         </div>
 
         <form id="compress-form">
+          <fieldset class="mode-picker">
+            <legend>Compression path</legend>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="conservative" checked>
+              <span><strong>Tree pruning</strong><small>Deterministic cuts with a full audit trail</small></span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="hybrid_sentinel">
+              <span><strong>Guarded LLMLingua-2</strong><small>Protect clauses, compress the rest, then validate</small></span>
+            </label>
+          </fieldset>
+          <p id="mode-note" class="mode-note">Tree pruning shows each deletion and protection decision.</p>
           <label class="input-label" for="source-text">Your text</label>
           <textarea id="source-text" rows="8" spellcheck="true">The committee, after a long and unusually detailed discussion in the morning, approved the annual budget in order to begin the project quickly.</textarea>
           <div class="form-footer">
@@ -69,32 +81,40 @@
         <div id="error-message" class="error-message" role="alert" hidden></div>
 
         <section id="result" class="result" aria-live="polite" hidden>
+          <p id="result-mode" class="result-mode"></p>
           <div class="compression-ruler" aria-label="Compression result summary">
             <div class="ruler-track"><span id="ruler-fill"></span></div>
             <div class="ruler-labels">
               <strong><span id="tokens-after">0</span> tokens remain</strong>
-              <span><span id="tokens-saved">0</span> removed · <span id="time-taken">0</span> ms</span>
+              <span><span id="tokens-saved">0</span> tokens saved · <span id="time-taken">0</span> ms</span>
             </div>
           </div>
 
           <div class="text-compare">
             <article>
-              <header><h3>Original, annotated</h3><span id="original-count"></span></header>
+              <header><h3 id="original-title">Original, annotated</h3><span id="original-count"></span></header>
               <div id="annotated-text" class="text-panel"></div>
             </article>
             <article>
-              <header><h3>Compressed</h3><span id="compressed-count"></span></header>
+              <header><h3 id="compressed-title">Compressed</h3><span id="compressed-count"></span></header>
               <div id="compressed-text" class="text-panel compressed-panel"></div>
             </article>
           </div>
 
-          <div class="audit-strip">
+          <div id="audit-strip" class="audit-strip">
             <div><strong id="deletion-count">0</strong><span>cuts made</span></div>
             <div><strong id="protected-count">0</strong><span>spans protected</span></div>
             <div><strong id="substitution-count">0</strong><span>phrases shortened</span></div>
           </div>
 
-          <details>
+          <div id="hybrid-report" class="hybrid-report" hidden>
+            <div class="hybrid-stat"><strong id="masked-count">0</strong><span>sentences with protected clauses restored</span></div>
+            <div class="hybrid-stat"><strong id="clean-count">0</strong><span>sentences sent to LLMLingua-2</span></div>
+            <div class="hybrid-stat"><strong id="fallback-count">0</strong><span>sentences handled by tree pruning</span></div>
+            <p id="hybrid-validation"></p>
+          </div>
+
+          <details id="audit-details">
             <summary>Open the audit trail</summary>
             <div id="audit-list" class="audit-list"></div>
           </details>
@@ -221,6 +241,16 @@
           </div>
           <code>protected_before == protected_after</code>
           <span class="invariant-status">Required: zero violations</span>
+        </section>
+
+        <section class="hybrid-explainer" aria-labelledby="hybrid-title">
+          <h2 id="hybrid-title">The guarded model path</h2>
+          <p>For a protected side clause, the hybrid swaps in a marker before LLMLingua-2 runs, then restores and checks the original words. If a check fails, that sentence uses tree pruning.</p>
+          <div class="hybrid-steps" aria-label="Hybrid example">
+            <div><strong>Protect</strong><code>unless spending exceeds $5,000</code></div>
+            <div><strong>Compress</strong><code>The team worked KEEPCLAUSEA.</code></div>
+            <div><strong>Restore</strong><code>The team worked unless spending exceeds $5,000.</code></div>
+          </div>
         </section>
       </div>
     </main>

@@ -15,6 +15,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path[:] = [path for path in sys.path if os.path.abspath(path or ".") != _HERE]
 
 import dataclasses
+from functools import lru_cache
 import json
 import mimetypes
 from http import HTTPStatus
@@ -25,9 +26,11 @@ from urllib.parse import urlparse
 REPO_ROOT = Path(__file__).resolve().parents[1]
 UI_ROOT = REPO_ROOT / "ui"
 SAMPLES_ROOT = REPO_ROOT / "data" / "samples"
+sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from promptcomp import compress  # noqa: E402
+from promptcomp.tokens import TiktokenCounter  # noqa: E402
 
 MAX_INPUT_BYTES = 1_000_000
 
@@ -49,7 +52,28 @@ def _example_catalog() -> list[dict[str, str]]:
                 "preview": " ".join(text.split())[:150],
             }
         )
+    examples.append(
+        {
+            "id": "hybrid_guardrail",
+            "name": "Hybrid guardrail",
+            "text": "The team worked carefully, unless spending exceeds $5,000.",
+            "preview": "See how the protected spending condition survives an LLMLingua-2 pass.",
+            "mode": "hybrid_sentinel",
+        }
+    )
     return examples
+
+
+@lru_cache(maxsize=1)
+def _hybrid_backend():
+    from eval.baselines import LLMLingua2Compressor
+
+    try:
+        return LLMLingua2Compressor()
+    except ImportError as exc:
+        raise RuntimeError(
+            'Hybrid mode needs LLMLingua-2. Install it with: python -m pip install -e ".[llmlingua]"'
+        ) from exc
 
 
 def _compress_payload(payload: dict) -> dict:
@@ -66,6 +90,32 @@ def _compress_payload(payload: dict) -> dict:
     if not 0.1 <= target_ratio <= 1.0:
         raise ValueError("Target ratio must be between 0.1 and 1.0.")
 
+    mode = payload.get("mode", "conservative")
+    if mode not in {"conservative", "hybrid_sentinel"}:
+        raise ValueError("Choose conservative or hybrid compression.")
+
+    if mode == "hybrid_sentinel":
+        from eval.hybrid import SentinelHybridCompressor
+
+        hybrid = SentinelHybridCompressor(ll_compressor=_hybrid_backend())
+        output = hybrid.compress(text, target_ratio)
+        counter = TiktokenCounter()
+        before = counter.count(text)
+        after = counter.count(output.text)
+        return {
+            "mode": mode,
+            "original": text,
+            "compressed": output.text,
+            "tokens_before": before,
+            "tokens_after": after,
+            "saved_tokens": before - after,
+            "saved_percent": round((1 - after / before) * 100, 1),
+            "ratio": after / before,
+            "timings_ms": {"total": output.latency_ms},
+            "target_ratio": target_ratio,
+            "hybrid_stats": hybrid.stats,
+        }
+
     result = compress(
         text,
         target_ratio=target_ratio,
@@ -77,6 +127,7 @@ def _compress_payload(payload: dict) -> dict:
     data["saved_tokens"] = result.tokens_before - result.tokens_after
     data["saved_percent"] = round((1 - result.ratio) * 100, 1)
     data["target_ratio"] = target_ratio
+    data["mode"] = mode
     return data
 
 
