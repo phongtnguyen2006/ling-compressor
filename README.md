@@ -84,6 +84,15 @@ The compressor removed `unusually`, `annual`, and
 `in order to begin the project quickly`, saving 9 tokens (34.6%). The result's audit
 trail records each deletion while the time reference remains protected.
 
+## Video demo
+
+[![Watch the Ling Compressor workbench demo](demo/ling-compressor-demo-poster.png)](demo/ling-compressor-demo.mp4)
+
+[Watch the 37-second captioned demo](demo/ling-compressor-demo.mp4). It shows two
+prompts in the local workbench: one loses an optional phrase (9 → 6 tokens), while
+the other keeps a deadline and an exception as it shrinks (33 → 24 tokens). The
+walkthrough also opens the audit trail and shows the compression pipeline.
+
 ## Quick start
 
 Requires Python 3.12. The package install includes spaCy; download its English
