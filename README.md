@@ -86,12 +86,12 @@ trail records each deletion while the time reference remains protected.
 
 ## Video demo
 
-[![Watch the Ling Compressor workbench demo](demo/ling-compressor-demo-poster.png)](demo/ling-compressor-demo.mp4)
+![Animated Ling Compressor workbench demo](demo/ling-compressor-demo.gif)
 
-[Watch the 37-second captioned demo](demo/ling-compressor-demo.mp4). It shows two
-prompts in the local workbench: one loses an optional phrase (9 → 6 tokens), while
-the other keeps a deadline and an exception as it shrinks (33 → 24 tokens). The
-walkthrough also opens the audit trail and shows the compression pipeline.
+The 37-second animated demo shows two prompts in the local workbench: one loses
+an optional phrase (9 → 6 tokens), while the other keeps a deadline and an
+exception as it shrinks (33 → 24 tokens). It also opens the audit trail and shows
+the compression pipeline. [Download the full MP4 (2.5 MB)](https://raw.githubusercontent.com/phongtnguyen2006/ling-compressor/main/demo/ling-compressor-demo.mp4).
 
 ## Quick start
 
