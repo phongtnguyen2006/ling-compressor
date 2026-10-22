@@ -1,0 +1,277 @@
+{
+  "schema_version": "lexical-review-v1",
+  "run_fingerprint": "f71a5481946c18c2358ee9c3cc8b62244d1443534e44eaedcc83011b9a148896",
+  "source_checksums": {
+    "candidate-pools.jsonl": "c3b6dc5463ccb34f427e19b8607cdfed4d5095e98eb26e2c8422972a9769c1d1",
+    "edit-review.jsonl": "e8ca767675764ba804b1004ec0a886c7d0b85e8cc40b764724f761fc8f552ab2",
+    "inputs.jsonl": "f187bbfc6cc8137a8673e42436c2b07f4cb850dc04c531409ebffd2e32e333d1",
+    "manifest.json": "de969d231fe0ab606d195c3c540a149d6232a1604c2c72a54f2f35a8a93fa928",
+    "prompt-review.jsonl": "9af2126c3948578f8af8683027fecde25f33bd2938a0419d6b3fd121210a7f8c",
+    "results.jsonl": "82f1c8d7c63bdc085002737a6f9ac918542aac75ae00d41d88aedf5c8b6cc867",
+    "review-key.jsonl": "558969bbc0be165b241c57ac228eddf62410d218e6073b0efcd1d4c18d570632",
+    "summary.json": "744fec8966ae178f21c04a9ce1e6e395fe4b4c33341a5d983ce89f41d1ad6b80",
+    "summary.md": "cb0ce0fc7eca5252c3eeb7931c8141c03c205a0655d93b15d654091a8bc3990b"
+  },
+  "submitted": {
+    "edit": null,
+    "prompt": null
+  },
+  "reporter_sha256": "e43c4cbaefebca8ff2aeb0dd71fc6651a3a706c015cc7cbb651484e9012de12d",
+  "report_fingerprint": "e351d9a2980fd6aedbb94c2727ce092d31e7b0c4945bfdfbd2046de93e4d0ac9",
+  "created_at": "2026-10-07T18:38:01.246509+00:00",
+  "status": "annotation_summary_not_deployment_approval",
+  "unique_edit_reviews": {
+    "total": 6,
+    "completed": 0,
+    "partial": 0,
+    "pending": 6,
+    "accepted": 0,
+    "rejected": 0,
+    "harmful_completed": 0
+  },
+  "unique_prompt_reviews": {
+    "total": 8,
+    "completed": 0,
+    "partial": 0,
+    "pending": 8,
+    "accepted": 0,
+    "rejected": 0,
+    "harmful_completed": 0
+  },
+  "arms": [
+    {
+      "arm": "u",
+      "documents": 6,
+      "changed_documents": 0,
+      "tokens_before": 68,
+      "proposed_tokens_saved": 0,
+      "changed_prompt_reviews": {
+        "total": 0,
+        "completed": 0,
+        "partial": 0,
+        "pending": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "unchanged_prompt_reviews": {
+        "total": 6,
+        "completed": 0,
+        "partial": 0,
+        "pending": 6,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "selected_edit_reviews": {
+        "total": 0,
+        "completed": 0,
+        "partial": 0,
+        "pending": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "candidate_edit_reviews": {
+        "total": 0,
+        "completed": 0,
+        "partial": 0,
+        "pending": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "tokens_saved_in_review_accepted_outputs": 0,
+      "review_accepted_savings_over_all_input_tokens": 0.0
+    },
+    {
+      "arm": "b0",
+      "documents": 6,
+      "changed_documents": 2,
+      "tokens_before": 68,
+      "proposed_tokens_saved": 6,
+      "changed_prompt_reviews": {
+        "total": 2,
+        "completed": 0,
+        "partial": 0,
+        "pending": 2,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "unchanged_prompt_reviews": {
+        "total": 4,
+        "completed": 0,
+        "partial": 0,
+        "pending": 4,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "selected_edit_reviews": {
+        "total": 3,
+        "completed": 0,
+        "partial": 0,
+        "pending": 3,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "candidate_edit_reviews": {
+        "total": 3,
+        "completed": 0,
+        "partial": 0,
+        "pending": 3,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "tokens_saved_in_review_accepted_outputs": 0,
+      "review_accepted_savings_over_all_input_tokens": 0.0
+    },
+    {
+      "arm": "b1",
+      "documents": 6,
+      "changed_documents": 2,
+      "tokens_before": 68,
+      "proposed_tokens_saved": 6,
+      "changed_prompt_reviews": {
+        "total": 2,
+        "completed": 0,
+        "partial": 0,
+        "pending": 2,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "unchanged_prompt_reviews": {
+        "total": 4,
+        "completed": 0,
+        "partial": 0,
+        "pending": 4,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "selected_edit_reviews": {
+        "total": 3,
+        "completed": 0,
+        "partial": 0,
+        "pending": 3,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "candidate_edit_reviews": {
+        "total": 3,
+        "completed": 0,
+        "partial": 0,
+        "pending": 3,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "tokens_saved_in_review_accepted_outputs": 0,
+      "review_accepted_savings_over_all_input_tokens": 0.0
+    },
+    {
+      "arm": "b2",
+      "documents": 6,
+      "changed_documents": 2,
+      "tokens_before": 68,
+      "proposed_tokens_saved": 6,
+      "changed_prompt_reviews": {
+        "total": 2,
+        "completed": 0,
+        "partial": 0,
+        "pending": 2,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "unchanged_prompt_reviews": {
+        "total": 4,
+        "completed": 0,
+        "partial": 0,
+        "pending": 4,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "selected_edit_reviews": {
+        "total": 3,
+        "completed": 0,
+        "partial": 0,
+        "pending": 3,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "candidate_edit_reviews": {
+        "total": 6,
+        "completed": 0,
+        "partial": 0,
+        "pending": 6,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "tokens_saved_in_review_accepted_outputs": 0,
+      "review_accepted_savings_over_all_input_tokens": 0.0
+    },
+    {
+      "arm": "b2_union",
+      "documents": 6,
+      "changed_documents": 2,
+      "tokens_before": 68,
+      "proposed_tokens_saved": 6,
+      "changed_prompt_reviews": {
+        "total": 2,
+        "completed": 0,
+        "partial": 0,
+        "pending": 2,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "unchanged_prompt_reviews": {
+        "total": 4,
+        "completed": 0,
+        "partial": 0,
+        "pending": 4,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "selected_edit_reviews": {
+        "total": 3,
+        "completed": 0,
+        "partial": 0,
+        "pending": 3,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "candidate_edit_reviews": {
+        "total": 6,
+        "completed": 0,
+        "partial": 0,
+        "pending": 6,
+        "accepted": 0,
+        "rejected": 0,
+        "harmful_completed": 0
+      },
+      "tokens_saved_in_review_accepted_outputs": 0,
+      "review_accepted_savings_over_all_input_tokens": 0.0
+    }
+  ],
+  "limitations": [
+    "Judgments are supplied annotations; reviewer identity is not authenticated.",
+    "Incomplete and omitted reviews are not passes. Candidate ratings cannot approve composed outputs.",
+    "Shared review IDs are deduplicated within each arm; arms and repeated templates are not independent samples.",
+    "Changed outputs and unchanged controls have separate denominators; no population error rate is estimated.",
+    "Review-accepted savings count only fully accepted changed outputs against all input tokens; this is not net API savings.",
+    "One annotation set is supported; no rater agreement, sampling weighting, confidence interval, or downstream evaluation is inferred.",
+    "Checksums bind artifacts for reproducibility and accidental-edit detection; they are not signed proof of authenticity."
+  ]
+}

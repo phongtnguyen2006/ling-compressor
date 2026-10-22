@@ -212,6 +212,89 @@ These hybrids compress further on some prose, but they are not part of the publi
 Protected-token validation is not the same as proof of semantic equivalence; use them
 only for evaluation until downstream answer retention is measured.
 
+## Experimental lexical opportunity pilot
+
+The separate `promptcomp.lexical` API proposes word and phrase substitutions for
+human review. It records original character offsets, source dictionaries, rejection
+reasons, and complete-text token counts. The default compressor above is unchanged.
+Suggested text is **unreviewed**: the grammatical and protection checks do not
+establish semantic equivalence.
+
+Install the optional candidate-retrieval dependencies and explicitly provision the
+tokenizer once (the pilot itself blocks missing-asset downloads):
+
+```bash
+python -m pip install -e ".[lexical,dev]"
+python -c "import tiktoken; tiktoken.get_encoding('o200k_base')"
+```
+
+Run the curated-rule baseline on the authored integration examples:
+
+```bash
+python -m eval.lexical_pilot \
+  --corpus data/lexical-demo/prompts.jsonl \
+  --corpus-label "Authored integration examples; not a representative benchmark" \
+  --out .cache/lexical/curated-demo
+```
+
+The output directory must be new or empty. It contains Markdown/JSON summaries,
+frozen inputs and hashes, full candidate pools and occurrence audits, and blank
+edit/prompt review forms with a separate attribution key. Overall savings include
+unchanged inputs. Without `--wordnet`, B0 is explicitly labeled curated-only.
+
+```python
+from promptcomp.lexical import PilotProvider, suggest
+
+result = suggest("They worked in order to finish.", PilotProvider())
+print(result.suggested)
+print(result.review_status)  # pending
+print(result.edits)
+```
+
+Locally supplied GloVe/word2vec text enables `b1` (the same baseline candidates
+ranked by cosine), `b2` (an explicit baseline/neighbor slot allocation), and
+`b2_union` (a wider diagnostic with extra work reported separately). Optional
+WordNet data must also be provisioned explicitly. The bundled synthetic vectors
+exercise these code paths; they are not pretrained embeddings or quality evidence.
+
+Use `python -m eval.lexical_review` to validate annotated copies against a frozen
+pilot run and report completed versus pending reviews. It keeps candidate ratings
+separate from complete-output ratings. The [usage guide](docs/semantic-token-compression/usage.md)
+includes commands and the initial review rubric.
+
+See the [documentation index](docs/semantic-token-compression/README.md) and
+[implementation record](docs/semantic-token-compression/implementation.md) for
+stable requirements, decisions, verification evidence, and the Obsidian navigation
+path. The local vault exposes the canonical Markdown through its `Ling Compressor/docs/semantic-token-compression`
+folder.
+
+### Semantic compression dashboard (separate experimental track)
+
+The semantic substitution project lives on `feature/semantic-embedding-compression`.
+Its Streamlit dashboard runs separately from the existing Ling Compressor web
+workbench. Install its optional dependencies and the spaCy parser model, then run:
+
+```bash
+python -m pip install -e '.[semantic-ui,dev]'
+python -m spacy download en_core_web_sm
+python -c "import tiktoken; tiktoken.get_encoding('o200k_base')"
+python -m streamlit run semantic_ui/app.py
+```
+
+The default demonstration uses six authored prompts and a tiny **synthetic**
+vector file. For a real embedding experiment, obtain a local GloVe text file,
+provide its path in the dashboard, and record its source. The app shows token
+counts and proposed edits for inspection; cosine similarity and grammar checks
+cannot certify that an edit preserves intent. Enter a token price only to estimate
+the cost difference at that price; it is not a measured bill.
+
+To generate a reproducible pilot and review its results, follow the
+[pilot usage guide](docs/semantic-token-compression/usage.md) and the
+[project board and mentor timeline](docs/semantic-token-compression/project-board.md).
+The benchmark reporter reads a frozen pilot run and can optionally compute a
+local sentence embedding similarity proxy. Human review and downstream accuracy
+remain separate measurements.
+
 ## Evaluation and tests
 
 Run the complete suite:

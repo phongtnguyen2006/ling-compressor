@@ -1,0 +1,11 @@
+{
+  "candidate-pools.jsonl": "c3b6dc5463ccb34f427e19b8607cdfed4d5095e98eb26e2c8422972a9769c1d1",
+  "edit-review.jsonl": "e8ca767675764ba804b1004ec0a886c7d0b85e8cc40b764724f761fc8f552ab2",
+  "inputs.jsonl": "f187bbfc6cc8137a8673e42436c2b07f4cb850dc04c531409ebffd2e32e333d1",
+  "manifest.json": "de969d231fe0ab606d195c3c540a149d6232a1604c2c72a54f2f35a8a93fa928",
+  "prompt-review.jsonl": "9af2126c3948578f8af8683027fecde25f33bd2938a0419d6b3fd121210a7f8c",
+  "results.jsonl": "82f1c8d7c63bdc085002737a6f9ac918542aac75ae00d41d88aedf5c8b6cc867",
+  "review-key.jsonl": "558969bbc0be165b241c57ac228eddf62410d218e6073b0efcd1d4c18d570632",
+  "summary.json": "744fec8966ae178f21c04a9ce1e6e395fe4b4c33341a5d983ce89f41d1ad6b80",
+  "summary.md": "cb0ce0fc7eca5252c3eeb7931c8141c03c205a0655d93b15d654091a8bc3990b"
+}

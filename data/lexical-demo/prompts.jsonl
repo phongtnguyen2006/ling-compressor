@@ -1,0 +1,6 @@
+{"id":"phrase","group":"authored-phrase","split":"smoke","text":"They worked in order to finish the assignment."}
+{"id":"repeated","group":"authored-repeated","split":"smoke","text":"They worked in order to finish the assignment. We practiced in order to improve."}
+{"id":"modal","group":"authored-protected","split":"smoke","text":"They must work in order to finish the assignment."}
+{"id":"literal","group":"authored-protected","split":"smoke","text":"Keep the literal `in order to` and the placeholder {{methodologies}} unchanged."}
+{"id":"vectors","group":"authored-vectors","split":"smoke","text":"We discuss the methodologies. These projects necessitate planning."}
+{"id":"unchanged","group":"authored-concise","split":"smoke","text":"Write a short answer."}

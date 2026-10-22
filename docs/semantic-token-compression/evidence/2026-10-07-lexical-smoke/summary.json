@@ -1,0 +1,105 @@
+[
+  {
+    "arm": "u",
+    "documents": 6,
+    "tokens_before": 68,
+    "tokens_after": 68,
+    "tokens_saved": 0,
+    "corpus_reduction": 0.0,
+    "median_document_reduction": 0.0,
+    "changed_documents": 0,
+    "selected_edits": 0,
+    "word_edits": 0,
+    "phrase_edits": 0,
+    "selected_edits_by_source": {},
+    "candidate_decisions": 0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "semantic_quality": "not_evaluated",
+    "human_review": "pending"
+  },
+  {
+    "arm": "b0",
+    "documents": 6,
+    "tokens_before": 68,
+    "tokens_after": 62,
+    "tokens_saved": 6,
+    "corpus_reduction": 0.08823529411764708,
+    "median_document_reduction": 0.0,
+    "changed_documents": 2,
+    "selected_edits": 3,
+    "word_edits": 0,
+    "phrase_edits": 3,
+    "selected_edits_by_source": {
+      "curated": 3
+    },
+    "candidate_decisions": 176,
+    "p50_ms": 9.554000000207452,
+    "p95_ms": 2032.6364579996152,
+    "semantic_quality": "not_evaluated",
+    "human_review": "pending"
+  },
+  {
+    "arm": "b1",
+    "documents": 6,
+    "tokens_before": 68,
+    "tokens_after": 62,
+    "tokens_saved": 6,
+    "corpus_reduction": 0.08823529411764708,
+    "median_document_reduction": 0.0,
+    "changed_documents": 2,
+    "selected_edits": 3,
+    "word_edits": 0,
+    "phrase_edits": 3,
+    "selected_edits_by_source": {
+      "curated": 3
+    },
+    "candidate_decisions": 176,
+    "p50_ms": 7.751625000310014,
+    "p95_ms": 14.859958999295486,
+    "semantic_quality": "not_evaluated",
+    "human_review": "pending"
+  },
+  {
+    "arm": "b2",
+    "documents": 6,
+    "tokens_before": 68,
+    "tokens_after": 62,
+    "tokens_saved": 6,
+    "corpus_reduction": 0.08823529411764708,
+    "median_document_reduction": 0.0,
+    "changed_documents": 2,
+    "selected_edits": 3,
+    "word_edits": 0,
+    "phrase_edits": 3,
+    "selected_edits_by_source": {
+      "curated": 3
+    },
+    "candidate_decisions": 137,
+    "p50_ms": 9.208271499119292,
+    "p95_ms": 15.252000001055421,
+    "semantic_quality": "not_evaluated",
+    "human_review": "pending"
+  },
+  {
+    "arm": "b2_union",
+    "documents": 6,
+    "tokens_before": 68,
+    "tokens_after": 62,
+    "tokens_saved": 6,
+    "corpus_reduction": 0.08823529411764708,
+    "median_document_reduction": 0.0,
+    "changed_documents": 2,
+    "selected_edits": 3,
+    "word_edits": 0,
+    "phrase_edits": 3,
+    "selected_edits_by_source": {
+      "curated": 3
+    },
+    "candidate_decisions": 393,
+    "p50_ms": 12.013166499855288,
+    "p95_ms": 18.99737500025367,
+    "semantic_quality": "not_evaluated",
+    "human_review": "pending"
+  }
+]

@@ -1,0 +1,13 @@
+12 4
+methodologies 1 0 0 0
+methods 0.98 0.1 0 0
+approaches 0.9 0.2 0.1 0
+utilization 0 1 0 0
+use 0.1 0.98 0 0
+usage 0.2 0.9 0.1 0
+worked 0 0 1 0
+labored 0.1 0.1 0.98 0
+assignment 0 0 0 1
+task 0.1 0.1 0 0.98
+necessitate 0.5 0.5 0.5 0.5
+require 0.5 0.5 0.5 0.49

@@ -10,12 +10,15 @@ requires-python = ">=3.12"
 dependencies = [
     "tiktoken>=0.7",
     "pyyaml>=6",
-    "spacy>=3.7,<4",
+    "spacy>=3.7",
 ]
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]
 llmlingua = ["llmlingua>=0.2", "torch>=2"]
+lexical = ["numpy>=1.26", "nltk>=3.8.1"]
+semantic-ui = ["numpy>=1.26", "nltk>=3.8.1", "streamlit>=1.40", "plotly>=5.24", "pandas>=2.0"]
+semantic-eval = ["sentence-transformers>=3.0"]
 dev = ["pytest>=8", "hypothesis>=6"]
 
 [tool.setuptools.packages.find]

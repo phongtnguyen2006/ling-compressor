@@ -1,0 +1,304 @@
+{
+  "schema_version": "lexical-pilot-v1",
+  "inputs": [
+    {
+      "id": "literal",
+      "group": "authored-protected",
+      "split": "smoke",
+      "sha256": "04a64e3d4ce4b3602944aa6d9dec0020a70a62cfda641cee14a03dc143cea59f"
+    },
+    {
+      "id": "modal",
+      "group": "authored-protected",
+      "split": "smoke",
+      "sha256": "6cd2c05b3c14d4e643bd1c034a7d426cb220ef40e834c5f4e27bc119e745d1cf"
+    },
+    {
+      "id": "phrase",
+      "group": "authored-phrase",
+      "split": "smoke",
+      "sha256": "efd3a1fe96bc1aa0efdbf57e7a9e333a3f702a0bb7b6082a0aea226b77d39674"
+    },
+    {
+      "id": "repeated",
+      "group": "authored-repeated",
+      "split": "smoke",
+      "sha256": "e8419a3a88f0b1f7a4bd7fbb6c3fe508d6faac2d5a429ae8898f9faa953c2704"
+    },
+    {
+      "id": "unchanged",
+      "group": "authored-concise",
+      "split": "smoke",
+      "sha256": "cdf0b41ae4349a151555b1693b5df1748823864ef69cc018af9a7b7e304f4f2e"
+    },
+    {
+      "id": "vectors",
+      "group": "authored-vectors",
+      "split": "smoke",
+      "sha256": "77429d83776c107ae7c23127a996d6e7760e2f1432b146d1c65ac6dbb1390847"
+    }
+  ],
+  "counter": "tiktoken:o200k_base",
+  "providers": {
+    "u": {
+      "name": "unchanged"
+    },
+    "b0": {
+      "arm": "b0",
+      "max_candidates": 8,
+      "embedding_slots": 4,
+      "baseline_slots": 8,
+      "unused_slot_policy": "not-applicable",
+      "uncapped_diagnostic": false,
+      "union_extra_neighbor_limit": null,
+      "curated": {
+        "version": "sub-2026-07-23.2",
+        "sha256": "b0a5c0bca5f4091678ba2265a052111c40f3292338621814024ae0da76869c0b",
+        "rules": 15
+      },
+      "wordnet": {
+        "status": "available",
+        "version": "3.0",
+        "nltk_version": "3.10.0",
+        "sha256": "4731ecf61113841c92c1ea282dcb05efd011b45fd4c7d7ddd041feaaf4c446a7",
+        "digest_kind": "sorted-logical-corpus-contents"
+      },
+      "vectors": {
+        "sha256": "ae500d2cb80673cb67bcfcd379d34cdd330e1d588130bd2db900c4138d636ee8",
+        "source_path": "/Users/phongnguyen/VSCodeProjects/ling-compressor/data/lexical-demo/synthetic-vectors.txt",
+        "format": "word2vec-text",
+        "dimensions": 4,
+        "source_rows": 12,
+        "retained_rows": 12,
+        "max_words": 50000,
+        "dtype": "float32",
+        "normalization": "l2",
+        "retrieval": "exact-cosine-lexical-ties-casefold-unique",
+        "name": "vectors:20ca5623a30bd2c8"
+      },
+      "pool": "curated+wordnet",
+      "ranking": "curated-first,lexical",
+      "selection_order": "ranked-baseline",
+      "sample_provenance": [
+        "curated",
+        "wordnet:<synset>",
+        "embedding:<vector-id>"
+      ],
+      "warning": "Candidates are unvalidated proposals; cosine is not synonymy.",
+      "memoization": {
+        "capacity_per_pool": 1024,
+        "key": "exact-source-and-pos"
+      },
+      "name": "pilot:b0:9fef784e4a23021b"
+    },
+    "b1": {
+      "arm": "b1",
+      "max_candidates": 8,
+      "embedding_slots": 4,
+      "baseline_slots": 8,
+      "unused_slot_policy": "not-applicable",
+      "uncapped_diagnostic": false,
+      "union_extra_neighbor_limit": null,
+      "curated": {
+        "version": "sub-2026-07-23.2",
+        "sha256": "b0a5c0bca5f4091678ba2265a052111c40f3292338621814024ae0da76869c0b",
+        "rules": 15
+      },
+      "wordnet": {
+        "status": "available",
+        "version": "3.0",
+        "nltk_version": "3.10.0",
+        "sha256": "4731ecf61113841c92c1ea282dcb05efd011b45fd4c7d7ddd041feaaf4c446a7",
+        "digest_kind": "sorted-logical-corpus-contents"
+      },
+      "vectors": {
+        "sha256": "ae500d2cb80673cb67bcfcd379d34cdd330e1d588130bd2db900c4138d636ee8",
+        "source_path": "/Users/phongnguyen/VSCodeProjects/ling-compressor/data/lexical-demo/synthetic-vectors.txt",
+        "format": "word2vec-text",
+        "dimensions": 4,
+        "source_rows": 12,
+        "retained_rows": 12,
+        "max_words": 50000,
+        "dtype": "float32",
+        "normalization": "l2",
+        "retrieval": "exact-cosine-lexical-ties-casefold-unique",
+        "name": "vectors:20ca5623a30bd2c8"
+      },
+      "pool": "curated+wordnet",
+      "ranking": "curated-first,cosine,lexical",
+      "selection_order": "ranked-baseline",
+      "sample_provenance": [
+        "curated",
+        "wordnet:<synset>",
+        "embedding:<vector-id>"
+      ],
+      "warning": "Candidates are unvalidated proposals; cosine is not synonymy.",
+      "memoization": {
+        "capacity_per_pool": 1024,
+        "key": "exact-source-and-pos"
+      },
+      "name": "pilot:b1:93857c4450de5aaf"
+    },
+    "b2": {
+      "arm": "b2",
+      "max_candidates": 8,
+      "embedding_slots": 4,
+      "baseline_slots": 4,
+      "unused_slot_policy": "no-borrowing",
+      "uncapped_diagnostic": false,
+      "union_extra_neighbor_limit": null,
+      "curated": {
+        "version": "sub-2026-07-23.2",
+        "sha256": "b0a5c0bca5f4091678ba2265a052111c40f3292338621814024ae0da76869c0b",
+        "rules": 15
+      },
+      "wordnet": {
+        "status": "available",
+        "version": "3.0",
+        "nltk_version": "3.10.0",
+        "sha256": "4731ecf61113841c92c1ea282dcb05efd011b45fd4c7d7ddd041feaaf4c446a7",
+        "digest_kind": "sorted-logical-corpus-contents"
+      },
+      "vectors": {
+        "sha256": "ae500d2cb80673cb67bcfcd379d34cdd330e1d588130bd2db900c4138d636ee8",
+        "source_path": "/Users/phongnguyen/VSCodeProjects/ling-compressor/data/lexical-demo/synthetic-vectors.txt",
+        "format": "word2vec-text",
+        "dimensions": 4,
+        "source_rows": 12,
+        "retained_rows": 12,
+        "max_words": 50000,
+        "dtype": "float32",
+        "normalization": "l2",
+        "retrieval": "exact-cosine-lexical-ties-casefold-unique",
+        "name": "vectors:20ca5623a30bd2c8"
+      },
+      "pool": "curated+wordnet",
+      "ranking": "curated-first,cosine,lexical",
+      "selection_order": "baseline-then-additional-neighbors",
+      "sample_provenance": [
+        "curated",
+        "wordnet:<synset>",
+        "embedding:<vector-id>"
+      ],
+      "warning": "Candidates are unvalidated proposals; cosine is not synonymy.",
+      "memoization": {
+        "capacity_per_pool": 1024,
+        "key": "exact-source-and-pos"
+      },
+      "name": "pilot:b2:65c5a61bb3453a2f"
+    },
+    "b2_union": {
+      "arm": "b2_union",
+      "max_candidates": 8,
+      "embedding_slots": 4,
+      "baseline_slots": 8,
+      "unused_slot_policy": "not-applicable",
+      "uncapped_diagnostic": true,
+      "union_extra_neighbor_limit": 4,
+      "curated": {
+        "version": "sub-2026-07-23.2",
+        "sha256": "b0a5c0bca5f4091678ba2265a052111c40f3292338621814024ae0da76869c0b",
+        "rules": 15
+      },
+      "wordnet": {
+        "status": "available",
+        "version": "3.0",
+        "nltk_version": "3.10.0",
+        "sha256": "4731ecf61113841c92c1ea282dcb05efd011b45fd4c7d7ddd041feaaf4c446a7",
+        "digest_kind": "sorted-logical-corpus-contents"
+      },
+      "vectors": {
+        "sha256": "ae500d2cb80673cb67bcfcd379d34cdd330e1d588130bd2db900c4138d636ee8",
+        "source_path": "/Users/phongnguyen/VSCodeProjects/ling-compressor/data/lexical-demo/synthetic-vectors.txt",
+        "format": "word2vec-text",
+        "dimensions": 4,
+        "source_rows": 12,
+        "retained_rows": 12,
+        "max_words": 50000,
+        "dtype": "float32",
+        "normalization": "l2",
+        "retrieval": "exact-cosine-lexical-ties-casefold-unique",
+        "name": "vectors:20ca5623a30bd2c8"
+      },
+      "pool": "curated+wordnet",
+      "ranking": "curated-first,cosine,lexical",
+      "selection_order": "baseline-then-additional-neighbors",
+      "sample_provenance": [
+        "curated",
+        "wordnet:<synset>",
+        "embedding:<vector-id>"
+      ],
+      "warning": "Candidates are unvalidated proposals; cosine is not synonymy.",
+      "memoization": {
+        "capacity_per_pool": 1024,
+        "key": "exact-source-and-pos"
+      },
+      "name": "pilot:b2_union:786448de7c96631a"
+    }
+  },
+  "configuration": {
+    "arms": [
+      "u",
+      "b0",
+      "b1",
+      "b2",
+      "b2_union"
+    ],
+    "wordnet": true,
+    "encoding": "o200k_base",
+    "max_candidates": 8,
+    "embedding_slots": 4,
+    "max_words": 50000,
+    "max_documents": null,
+    "seed": 17,
+    "candidate_document_count": 6,
+    "vector_label": "Authored synthetic test vectors; not pretrained embeddings",
+    "synthetic_vectors": true
+  },
+  "versions": {
+    "python": "3.12.3",
+    "promptcomp": "0.1.0",
+    "tiktoken": "0.13.0",
+    "spacy": "3.8.14",
+    "en-core-web-sm": "3.8.0",
+    "numpy": "2.3.2",
+    "nltk": "3.10.0"
+  },
+  "software_sha256": {
+    "eval/lexical_pilot.py": "883e79776811f3ce2b03bc933410b06c560297be9ddc67c1414ebbda102afbf8",
+    "src/promptcomp/__init__.py": "e962e52024b0170f7255506bcbdeeb72121b7e03b7f4fc2e4fcd2565103823fc",
+    "src/promptcomp/data/defined_terms.yaml": "a5fa62d776e741285404edfc1b08d71f04653c7b7f439d98a5d2b2dec158af1f",
+    "src/promptcomp/data/protect_terms.yaml": "b7b5338598cd31722709ce6430a521224b4897f8e917d41fec46ab2117a993d8",
+    "src/promptcomp/data/substitutions.yaml": "d1b8ff965373a73f124ac0d1aafa07126b0883b099fc1d059841a118527e8744",
+    "src/promptcomp/delete.py": "e641b4e124ef4e323b3a0230135ebab7d2b3d6e4065c2c9bd53e7b85a73931e3",
+    "src/promptcomp/lexical/__init__.py": "e4a4ed698541f4b06abc0c70741f424e4dd559e4ac3ae487a23f420467e94d84",
+    "src/promptcomp/lexical/candidates.py": "0a5a06b2dc630d27f88ff1a2adf303b50a903f55bd6c784066a45c8ba9a2c3f7",
+    "src/promptcomp/lexical/engine.py": "c4df58ee509e62def195f323ac24a56178681e1021ec90afe0ee51f5dcc6ac6b",
+    "src/promptcomp/lexical/models.py": "34fda2423a1b2050f01794a5838415f4e8245f46bb8ba02897a66e8a1ae2d808",
+    "src/promptcomp/lexical/protection.py": "5e25060e53faf563d2150982dc65f6ae03b7a0d3531a5e2891017739e7f68c70",
+    "src/promptcomp/lexical/tokenization.py": "912bb685a849318533dfe9a7ffbd26bff0c32540ad00a137df0d46c6173b40dd",
+    "src/promptcomp/parse.py": "56f7f4f08c8538dbee8af20277040c8a3819717d9944f136db3d70e81cbde0af",
+    "src/promptcomp/pipeline.py": "9ad502f00f41cad8988684e607b77b1e852eb8584ae16179869220cbe8af8dce",
+    "src/promptcomp/protect.py": "223a5c8e2fc1daf8c3c1c9d7226d6607fe98beb8e9aaf1a1703ac050c854cc17",
+    "src/promptcomp/scoring/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/promptcomp/scoring/base.py": "0575ff732b07a477e67103dddba881455a1278727b0b92d53bffe15e6456f593",
+    "src/promptcomp/scoring/frequency.py": "8592cec5e578ca87897e6bf0a53825b5dea3f7bb6637753a0b4afe760827be33",
+    "src/promptcomp/scoring/heuristic.py": "486a9be3d3ea307beb9b0fb82c21041dcb5ea2f590a1b549700398ced0597519",
+    "src/promptcomp/segment.py": "d2e0717010416e070270414334c0f49cbedfd895d791175f796852dae73f4049",
+    "src/promptcomp/substitute.py": "36a12880d998e172ca16a7136875808136d16e7bb97007c346b774406b248f0a",
+    "src/promptcomp/tokens.py": "44f9f9b21cbbbd22247978de30e2fec08a2e8b68eabb26a4bf48dd13dda7f0a3",
+    "src/promptcomp/types.py": "92a380c1e7b7b56a81dc5d6493a324206bfbfd075261409648b3dc8c1e47d74a"
+  },
+  "run_fingerprint": "f71a5481946c18c2358ee9c3cc8b62244d1443534e44eaedcc83011b9a148896",
+  "corpus_label": "Six authored integration examples; real WordNet; synthetic vectors; no human judgments",
+  "created_at": "2026-10-07T08:42:50.538249+00:00",
+  "status": "unreviewed_opportunity_pilot",
+  "input_selection": "Inputs selected before candidate discovery; no quality-based filtering.",
+  "limitations": [
+    "No human judgments, downstream accuracy, semantic equivalence, or net API savings established.",
+    "All-input token savings include unchanged documents; empty inputs contribute zero tokens.",
+    "Latency is a single sequential pass, includes cold/warm variation, and is not an isolated performance benchmark.",
+    "Candidate-pool headroom is not a universal compression bound.",
+    "SYNTHETIC VECTOR FIXTURE: embedding results test software only, not GloVe quality."
+  ]
+}
