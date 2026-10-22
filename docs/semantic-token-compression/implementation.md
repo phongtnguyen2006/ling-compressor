@@ -20,6 +20,8 @@ tags:
 
 This record turns the September 24 research and debate into a traceable implementation. The October 6 instruction authorizes implementation and requests Markdown viewable in Obsidian. The first milestone builds an executable offline opportunity pilot with auditable substitutions. Completing the software does not complete the representative human study or establish semantic equivalence.
 
+**Interface update, 2026-10-22:** the interactive semantic demo is now part of the existing Ling Compressor web workbench (`python scripts/ui.py`). The separate Streamlit prototype was removed so all three compression paths share one visual interface and launch command. This demo does not fulfill the later reviewed-template workflow or the human and downstream evaluation milestones below.
+
 ## Scope and evidence boundary
 
 English prose and an explicit local tokenizer are the starting scope. The experimental arms are unchanged input (`U`), curated rules plus WordNet (`B0`), the same candidate pool ranked using vectors (`B1`), and the baseline pool plus additional vector neighbors (`B2`). Phrase substitutions are labeled separately from word substitutions. The engine proposes occurrence-specific edits, protects structured/exact content, counts complete outputs, and exports judgments for later human review.

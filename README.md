@@ -268,25 +268,27 @@ stable requirements, decisions, verification evidence, and the Obsidian navigati
 path. The local vault exposes the canonical Markdown through its `Ling Compressor/docs/semantic-token-compression`
 folder.
 
-### Semantic compression dashboard (separate experimental track)
+### Semantic substitution in the Ling Compressor workbench
 
-The semantic substitution project lives on `feature/semantic-embedding-compression`.
-Its Streamlit dashboard runs separately from the existing Ling Compressor web
-workbench. Install its optional dependencies and the spaCy parser model, then run:
+The semantic substitution experiment is a third path in the same local workbench
+as tree pruning and guarded LLMLingua-2. Install the lexical dependencies and
+local parser/tokenizer assets, then open the workbench:
 
 ```bash
-python -m pip install -e '.[semantic-ui,dev]'
+python -m pip install -e '.[lexical,dev]'
 python -m spacy download en_core_web_sm
 python -c "import tiktoken; tiktoken.get_encoding('o200k_base')"
-python -m streamlit run semantic_ui/app.py
+python scripts/ui.py
 ```
 
-The default demonstration uses six authored prompts and a tiny **synthetic**
-vector file. For a real embedding experiment, obtain a local GloVe text file,
-provide its path in the dashboard, and record its source. The app shows token
-counts and proposed edits for inspection; cosine similarity and grammar checks
-cannot certify that an edit preserves intent. Enter a token price only to estimate
-the cost difference at that price; it is not a measured bill.
+Open [http://localhost:8000](http://localhost:8000), select **Semantic
+substitution**, then choose B0 (curated baseline), B1 (vector ranking), or B2
+(additional vector neighbors). The bundled examples and tiny vectors are
+**synthetic software fixtures**. For a real embedding experiment, obtain a
+local GloVe text file, provide its path, and record its source. The workbench
+shows complete-text token counts, occurrence edits, rejected candidates, and
+an optional cost estimate. Cosine similarity and grammar checks cannot certify
+that an edit preserves intent.
 
 To generate a reproducible pilot and review its results, follow the
 [pilot usage guide](docs/semantic-token-compression/usage.md) and the

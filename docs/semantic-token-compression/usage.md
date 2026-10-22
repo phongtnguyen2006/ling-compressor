@@ -16,14 +16,17 @@ tags:
 
 # Lexical opportunity pilot usage
 
-## Visual dashboard and benchmark report
+## Unified workbench and benchmark report
 
-Install the separate dashboard extra with `python -m pip install -e '.[semantic-ui]'`,
-then run `python -m streamlit run semantic_ui/app.py` from the repository root.
-The bundled vectors are synthetic and are labeled as such in the dashboard.
-Point the dashboard at a locally provisioned GloVe text file for a real vector
+Install `python -m pip install -e '.[lexical]'`, then run `python scripts/ui.py`
+from the repository root and open `http://localhost:8000`. Select **Semantic
+substitution** in the same workbench that contains tree pruning and guarded
+LLMLingua-2. The bundled vectors are synthetic and labeled as such. Point the
+semantic controls at a locally provisioned GloVe text file for a real vector
 lookup. The tokenizer cache and spaCy model still require the explicit setup
-below.
+below. The local workbench accepts vector files up to 2 GB and validates the
+entire file when first loaded; later runs reuse its cached index. No assets are
+downloaded by the workbench during a run.
 
 Summarize a frozen pilot run without downloading a model:
 

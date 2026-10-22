@@ -17,6 +17,8 @@ tags:
 
 The offline substitution pilot and review reporter are implemented. The [implementation record](implementation.md) tracks requirements, decisions, test results, and the next research gate. The six authored smoke inputs and synthetic vectors verify the software; a representative study and human review are still pending.
 
+The interactive semantic demo is available from the shared Ling Compressor workbench (`python scripts/ui.py`). Select **Semantic substitution** alongside the existing tree-pruning and guarded-model paths. The earlier standalone Streamlit prototype was retired when the interfaces were consolidated.
+
 | Read | Purpose |
 | --- | --- |
 | [Feasibility report](feasibility.md) · SEM-RESEARCH-001 | Value, feasibility, prior work, risks, and semester timeline |

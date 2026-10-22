@@ -50,7 +50,7 @@
             <h2 id="workbench-title">Compression workbench</h2>
             <p>Short input is allowed here so you can test a single sentence.</p>
           </div>
-          <div class="controls">
+          <div id="standard-controls" class="controls">
             <label for="ratio">Keep <output id="ratio-output" for="ratio">60%</output></label>
             <input id="ratio" type="range" min="10" max="100" step="5" value="60">
             <label class="check-control"><input id="substitute" type="checkbox" checked> Shorten phrases</label>
@@ -68,8 +68,96 @@
               <input type="radio" name="mode" value="hybrid_sentinel">
               <span><strong>Guarded LLMLingua-2</strong><small>Protect clauses, compress the rest, then validate</small></span>
             </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="semantic">
+              <span><strong>Semantic substitution</strong><small>Offline lexical suggestions with local vectors and audit</small></span>
+            </label>
           </fieldset>
           <p id="mode-note" class="mode-note">Tree pruning shows each deletion and protection decision.</p>
+
+          <fieldset id="semantic-settings" class="semantic-settings" hidden>
+            <legend>Semantic substitution settings</legend>
+            <div class="semantic-warning-banner" role="note">
+              <strong class="warning-badge">Experimental</strong>
+              <p>Offline lexical suggestions with local assets. Token savings, cosine similarity, and grammar guards do not establish meaning preservation; human review is required before using rewritten prompts.</p>
+            </div>
+            <div class="settings-grid">
+              <div class="setting-group">
+                <label for="semantic-arm">Experiment arm</label>
+                <select id="semantic-arm">
+                  <option value="b0" selected>B0 · Curated rules / WordNet</option>
+                  <option value="b1">B1 · Baseline pool ranked by vectors</option>
+                  <option value="b2">B2 · Baseline plus vector neighbors</option>
+                </select>
+                <small id="semantic-arm-caption" class="setting-caption">B0 uses curated rules with optional WordNet. Vectors are not required.</small>
+              </div>
+
+              <div class="setting-group">
+                <label for="semantic-encoding">Tokenizer counter</label>
+                <select id="semantic-encoding">
+                  <option value="o200k_base" selected>o200k_base (GPT-4o / modern)</option>
+                  <option value="cl100k_base">cl100k_base (GPT-4 / classic)</option>
+                </select>
+                <small class="setting-caption">Tokenizer used for full-text recount.</small>
+              </div>
+
+              <div class="setting-group">
+                <label for="semantic-vector-source">Vector asset source</label>
+                <select id="semantic-vector-source">
+                  <option value="synthetic" selected>Bundled synthetic vectors</option>
+                  <option value="local">Custom local vector file</option>
+                </select>
+                <p id="synthetic-vector-warning" class="setting-caption warning-text">Bundled synthetic vectors (software fixture, not trained embeddings). These values cannot support semantic-quality claims.</p>
+              </div>
+
+              <div id="semantic-vector-path-group" class="setting-group" hidden>
+                <label for="semantic-vector-path">Local vector text file path</label>
+                <input id="semantic-vector-path" type="text" placeholder="/path/to/vectors.txt" value="">
+                <small class="setting-caption">Path to local GloVe or word2vec text file. No downloads.</small>
+              </div>
+
+              <div class="setting-group">
+                <label for="semantic-price">Input price (USD / 1M tokens)</label>
+                <input id="semantic-price" type="number" min="0" step="0.01" value="0.00" placeholder="0.00">
+                <small class="setting-caption">Hypothetical input price used to estimate cost savings.</small>
+              </div>
+
+              <div class="setting-group-row">
+                <div class="setting-subgroup">
+                  <label for="semantic-max-candidates">Candidates / source</label>
+                  <input id="semantic-max-candidates" type="number" min="2" max="32" value="8" step="1">
+                </div>
+                <div id="semantic-slots-group" class="setting-subgroup">
+                  <label for="semantic-embedding-slots">B2 vector slots</label>
+                  <input id="semantic-embedding-slots" type="number" min="1" max="7" value="4" step="1">
+                </div>
+              </div>
+
+              <div class="setting-group-checkboxes">
+                <label class="check-control">
+                  <input id="semantic-wordnet" type="checkbox"> Include locally installed WordNet
+                </label>
+                <small class="setting-caption">When off, baseline candidates are curated rules only. WordNet is never downloaded.</small>
+
+                <label class="check-control">
+                  <input id="semantic-similarity-toggle" type="checkbox"> Require minimum embedding similarity
+                </label>
+                <small class="setting-caption">Applies only to B2 vector-neighbor proposals.</small>
+
+                <div id="semantic-similarity-controls" class="similarity-controls" hidden>
+                  <div class="range-row">
+                    <label for="semantic-min-similarity" class="visually-hidden">Minimum cosine similarity</label>
+                    <input id="semantic-min-similarity" type="range" min="-1" max="1" step="0.01" value="0.75">
+                    <output id="semantic-min-similarity-output" for="semantic-min-similarity">0.75</output>
+                  </div>
+                  <label class="check-control">
+                    <input id="semantic-adaptive-similarity" type="checkbox"> Adaptive similarity threshold
+                  </label>
+                  <small class="setting-caption">Adds 0.05 for 1-token gain and 0.05 for noun/verb proposals (capped at 1.0).</small>
+                </div>
+              </div>
+            </div>
+          </fieldset>
           <label class="input-label" for="source-text">Your text</label>
           <textarea id="source-text" rows="8" spellcheck="true">The committee, after a long and unusually detailed discussion in the morning, approved the annual budget in order to begin the project quickly.</textarea>
           <div class="form-footer">
@@ -86,8 +174,19 @@
             <div class="ruler-track"><span id="ruler-fill"></span></div>
             <div class="ruler-labels">
               <strong><span id="tokens-after">0</span> tokens remain</strong>
-              <span><span id="tokens-saved">0</span> tokens saved · <span id="time-taken">0</span> ms</span>
+              <span><span id="tokens-saved">0</span> tokens saved · <span id="time-taken">0</span> ms<span id="cost-saved-summary"></span></span>
             </div>
+          </div>
+
+          <div id="semantic-banner" class="semantic-banner" hidden>
+            <div class="semantic-banner-row">
+              <span id="review-status-badge" class="meta-badge badge-pending">Review: Pending</span>
+              <span id="token-counter-badge" class="meta-badge"></span>
+              <span id="vector-label-badge" class="meta-badge"></span>
+              <span id="config-hash-badge" class="meta-badge"></span>
+              <span id="cost-saved-badge" class="meta-badge badge-cost"></span>
+            </div>
+            <div id="semantic-warnings-list" class="semantic-warnings-list" hidden></div>
           </div>
 
           <div class="text-compare">
@@ -102,9 +201,9 @@
           </div>
 
           <div id="audit-strip" class="audit-strip">
-            <div><strong id="deletion-count">0</strong><span>cuts made</span></div>
-            <div><strong id="protected-count">0</strong><span>spans protected</span></div>
-            <div><strong id="substitution-count">0</strong><span>phrases shortened</span></div>
+            <div><strong id="deletion-count">0</strong><span id="deletion-label">cuts made</span></div>
+            <div><strong id="protected-count">0</strong><span id="protected-label">spans protected</span></div>
+            <div><strong id="substitution-count">0</strong><span id="substitution-label">phrases shortened</span></div>
           </div>
 
           <div id="hybrid-report" class="hybrid-report" hidden>
@@ -115,7 +214,7 @@
           </div>
 
           <details id="audit-details">
-            <summary>Open the audit trail</summary>
+            <summary id="audit-summary-label">Open the audit trail</summary>
             <div id="audit-list" class="audit-list"></div>
           </details>
         </section>
