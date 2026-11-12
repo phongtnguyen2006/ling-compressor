@@ -5,7 +5,7 @@ aliases:
   - Semantic Compression Pilot Usage
 type: usage-guide
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-11
 status: experimental
 tags:
   - ling-compressor
@@ -28,6 +28,33 @@ below. The local workbench accepts vector files up to 2 GB and validates the
 entire file when first loaded; later runs reuse its cached index. No assets are
 downloaded by the workbench during a run.
 
+### Review and reuse an exact prompt template
+
+The semantic workbench presents proposed substitutions as **pending**. For a
+repeated, authored prompt template, inspect each occurrence and mark it
+**Accept** or **Reject**. The preview recounts the complete text under the
+selected tokenizer. **Save Approved Template** requires every proposal to have
+an explicit decision, at least one accepted substitution, and a positive
+complete-text token saving. Export the reviewed text and audit JSON from the
+same panel. Saved records live only in ignored `.cache/approved_templates/`.
+
+This workflow is for exact repeated text. The saved record binds the original
+content, tokenizer, candidate configuration, and vector asset identity.
+`POST /api/semantic/validate` checks those bindings and returns the original
+input unchanged if validation fails. For an authored template containing
+placeholders, validate the template **before** filling the placeholders, then
+fill the approved output in the application. If the source template wording
+changes, review and save that revised template separately. The private
+approval and template endpoints are available only on a loopback-bound local
+workbench. Use the displayed provenance and sentence context to judge each
+edit; the software's cosine and grammar checks do not approve meaning.
+
+The two public proxy pilots in the [decision report](real-vector-pilot-2026-11-11.md)
+do not justify automatic vector rewriting. This limited workflow creates
+value only for templates that a person reviews and reuses enough times to
+offset review and execution cost. The workbench does not measure that return
+on investment or claim suitability as a network-facing service.
+
 Summarize a frozen pilot run without downloading a model:
 
 ```bash
@@ -44,9 +71,44 @@ with an existing local SentenceTransformer directory. The reporter enables
 offline model loading; cosine does not replace human review or downstream task
 accuracy.
 
+### Reproduce the real-vector prompt pilot locally
+
+The [2026-11-11 pilot report](real-vector-pilot-2026-11-11.md) used the
+[Gensim data GloVe 50d mirror](https://github.com/piskvorky/gensim-data/blob/master/list.json)
+and [Databricks Dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k).
+The source files and frozen prompt text belong under ignored `.cache/`, not in
+the repository. Provision the sources explicitly, then run:
+
+```bash
+mkdir -p .cache/semantic-real
+curl -fL https://github.com/piskvorky/gensim-data/releases/download/glove-wiki-gigaword-50/glove-wiki-gigaword-50.gz -o .cache/semantic-real/glove-wiki-gigaword-50.gz
+gunzip -c .cache/semantic-real/glove-wiki-gigaword-50.gz > .cache/semantic-real/glove-wiki-gigaword-50.txt
+curl -fL https://huggingface.co/datasets/databricks/databricks-dolly-15k/resolve/main/databricks-dolly-15k.jsonl -o .cache/semantic-real/databricks-dolly-15k.jsonl
+python -m eval.prepare_dolly --source .cache/semantic-real/databricks-dolly-15k.jsonl --out .cache/semantic-real/dolly-400
+python -c "import tiktoken; tiktoken.get_encoding('o200k_base')"
+export NLTK_DATA="$PWD/.cache/nltk_data"
+python -m nltk.downloader -d "$NLTK_DATA" wordnet
+OPENBLAS_NUM_THREADS=1 python -m eval.lexical_pilot \
+  --corpus .cache/semantic-real/dolly-400/prompts.jsonl \
+  --out .cache/semantic-real/pilot-dolly-glove-10k-400 \
+  --corpus-label 'Databricks Dolly-15k balanced 400 instruction/context proxy; CC BY-SA 3.0' \
+  --arms u,b0,b1,b2 --encoding o200k_base --wordnet \
+  --vectors .cache/semantic-real/glove-wiki-gigaword-50.txt \
+  --vector-label 'Gensim data mirror of Stanford GloVe Wiki+Gigaword 6B 50d; first 10000 source-order vectors retained' \
+  --max-words 10000 --max-candidates 8 --embedding-slots 4
+python -m eval.semantic_decision \
+  --run .cache/semantic-real/pilot-dolly-glove-10k-400 \
+  --out .cache/semantic-real/decision-dolly
+```
+
+Each output path must be new; the tools refuse to overwrite frozen evidence.
+The public prompt corpus is a proxy for a real production workload. The
+separate AG News classification proxy requires locally provisioned Parquet
+files and `pyarrow`; its dataset card lists the license as unknown.
+
 [Documentation index](README.md) · [Implementation and evidence record](implementation.md) · [Agreed experiment plan](debate-plan.md)
 
-This guide covers the offline, substitution-only SEM-M1 prototype. It produces **unreviewed suggestions** and evidence for a later opportunity study. Token savings, cosine scores, and mechanical guards do not establish semantic equivalence. The existing deletion compressor does not invoke this engine automatically.
+The offline SEM-M1 engine produces **unreviewed suggestions** and evidence for an opportunity study. The local workbench adds a reviewed exact-template workflow. Token savings, cosine scores, and mechanical guards do not establish semantic equivalence. The existing deletion compressor does not invoke this engine automatically.
 
 **Traceability:** SEM-REQ-002 through SEM-REQ-010 and SEM-REQ-013; SEM-DEC-001 through SEM-DEC-004 and SEM-DEC-006. The [implementation record](implementation.md#implementation-and-verification-evidence) distinguishes verified software behavior from the unstarted representative study, SEM-M2.
 

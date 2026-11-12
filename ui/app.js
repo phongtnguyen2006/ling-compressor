@@ -50,6 +50,41 @@ const elements = {
   protectedLabel: document.querySelector("#protected-label"),
   substitutionLabel: document.querySelector("#substitution-label"),
   auditSummaryLabel: document.querySelector("#audit-summary-label"),
+
+  // Semantic reviewed template approval workflow elements
+  semanticApprovalWorkflow: document.querySelector("#semantic-approval-workflow"),
+  occurrencesList: document.querySelector("#occurrences-list"),
+  approveAllButton: document.querySelector("#approve-all-button"),
+  rejectAllButton: document.querySelector("#reject-all-button"),
+  resetAllButton: document.querySelector("#reset-all-button"),
+  approvalSummaryBadge: document.querySelector("#approval-summary-badge"),
+  approvalRecountNotice: document.querySelector("#approval-recount-notice"),
+  persistTemplateButton: document.querySelector("#persist-template-button"),
+  copyApprovedButton: document.querySelector("#copy-approved-button"),
+  exportTextButton: document.querySelector("#export-text-button"),
+  exportAuditButton: document.querySelector("#export-audit-button"),
+  approvalBannerMessage: document.querySelector("#approval-banner-message"),
+};
+
+const semanticReviewState = {
+  active: false,
+  originalText: "",
+  configHash: "",
+  encoding: "o200k_base",
+  vectorIdentity: "none",
+  occurrences: [],
+  composedText: "",
+  tokensBefore: 0,
+  tokensAfter: 0,
+  savedTokens: 0,
+  savedPercent: 0,
+  reviewStatus: "pending",
+  savedTemplate: null,
+  savedAudit: null,
+  lastDecisions: [],
+  activeRequestConfig: null,
+  invalidated: false,
+  reviewVersion: 0,
 };
 
 function setView(view, updateHistory = true) {
@@ -124,10 +159,16 @@ function codepointOffsets(text) {
 function annotateSemantic(original, compressed, edits, decisions) {
   // Python spans count Unicode code points; JavaScript slices count UTF-16 units.
   const offsets = codepointOffsets(original);
-  const positionedEdits = edits.map(edit => ({
-    ...edit, start: offsets[edit.span.start], end: offsets[edit.span.end],
-  }));
-  // Original annotations: edits as substitutions, and rejected decisions with protection as protected
+  const positionedEdits = (edits || []).map(edit => {
+    const spanStart = edit.span.start != null ? edit.span.start : edit.span[0];
+    const spanEnd = edit.span.end != null ? edit.span.end : edit.span[1];
+    return {
+      ...edit,
+      start: offsets[spanStart],
+      end: offsets[spanEnd],
+    };
+  });
+  // Original annotations: edits with their review status, and rejected decisions with protection as protected
   const origBoundaries = new Set([0, original.length]);
   positionedEdits.forEach(e => {
     origBoundaries.add(e.start);
@@ -135,9 +176,15 @@ function annotateSemantic(original, compressed, edits, decisions) {
   });
   const protectedDecisions = (decisions || []).filter(
     d => d.decision === "rejected" && d.reason && d.reason.startsWith("protected")
-  ).map(decision => ({
-    ...decision, start: offsets[decision.span.start], end: offsets[decision.span.end],
-  }));
+  ).map(decision => {
+    const spanStart = decision.span.start != null ? decision.span.start : decision.span[0];
+    const spanEnd = decision.span.end != null ? decision.span.end : decision.span[1];
+    return {
+      ...decision,
+      start: offsets[spanStart],
+      end: offsets[spanEnd],
+    };
+  });
   protectedDecisions.forEach(d => {
     origBoundaries.add(d.start);
     origBoundaries.add(d.end);
@@ -151,8 +198,10 @@ function annotateSemantic(original, compressed, edits, decisions) {
     const edit = positionedEdits.find(e => e.start <= start && e.end >= end);
     const prot = protectedDecisions.find(d => d.start <= start && d.end >= end);
     if (edit) {
+      const status = edit.decision || "pending";
       const simText = edit.similarity != null ? `, cos: ${edit.similarity.toFixed(3)}` : "";
-      origHtml += `<mark class="annotation-substitution" title="Replaced with '${escapeHtml(edit.replacement)}' (${escapeHtml(edit.provenance)}${simText}, -${edit.token_delta} tok)">${chunk}</mark>`;
+      const deltaText = edit.token_delta != null ? `, -${edit.token_delta} tok` : "";
+      origHtml += `<mark class="annotation-substitution annotation-substitution-${escapeHtml(status)}" title="[${escapeHtml(status.toUpperCase())}] Replaced with '${escapeHtml(edit.replacement)}' (${escapeHtml(edit.provenance || '')}${simText}${deltaText})">${chunk}</mark>`;
     } else if (prot) {
       origHtml += `<mark class="annotation-protected" title="Protected: ${escapeHtml(prot.reason)}">${chunk}</mark>`;
     } else {
@@ -160,12 +209,12 @@ function annotateSemantic(original, compressed, edits, decisions) {
     }
   }
 
-  // Compressed annotations: highlight the exact occurrence replaced in compressed output
-  const sortedEdits = [...positionedEdits].sort((a, b) => a.start - b.start);
+  // Compressed annotations: highlight ONLY accepted substitutions in the composed output
+  const acceptedEdits = positionedEdits.filter(e => e.decision === "accepted").sort((a, b) => a.start - b.start);
   let compHtml = "";
   let origCursor = 0;
   let compCursor = 0;
-  for (const edit of sortedEdits) {
+  for (const edit of acceptedEdits) {
     const prefixLen = edit.start - origCursor;
     const prefix = compressed.slice(compCursor, compCursor + prefixLen);
     compHtml += escapeHtml(prefix);
@@ -176,7 +225,7 @@ function annotateSemantic(original, compressed, edits, decisions) {
     const replText = compressed.slice(compCursor, compCursor + replLen);
     const sim = edit.similarity != null ? `, cos: ${edit.similarity.toFixed(3)}` : "";
     const delta = edit.token_delta != null ? `, -${edit.token_delta} tok` : "";
-    compHtml += `<mark class="annotation-substitution" title="Substituted for '${escapeHtml(edit.original)}' (${escapeHtml(edit.provenance)}${sim}${delta})">${escapeHtml(replText)}</mark>`;
+    compHtml += `<mark class="annotation-substitution annotation-substitution-accepted" title="Accepted: Substituted for '${escapeHtml(edit.original)}' (${escapeHtml(edit.provenance || '')}${sim}${delta})">${escapeHtml(replText)}</mark>`;
     compCursor += replLen;
   }
   compHtml += escapeHtml(compressed.slice(compCursor));
@@ -266,7 +315,344 @@ function buildSemanticAudit(data) {
   return html;
 }
 
-function renderResult(data) {
+function renderOccurrencesList() {
+  if (!elements.occurrencesList) return;
+  if (!semanticReviewState.occurrences.length) {
+    elements.occurrencesList.innerHTML = '<p class="empty-audit">No substitutions were proposed for this text.</p>';
+    if (elements.approvalSummaryBadge) {
+      elements.approvalSummaryBadge.textContent = "0 proposed";
+      elements.approvalSummaryBadge.className = "meta-badge badge-pending";
+    }
+    if (elements.persistTemplateButton) elements.persistTemplateButton.disabled = true;
+    return;
+  }
+
+  elements.occurrencesList.innerHTML = semanticReviewState.occurrences.map((occ, idx) => {
+    const status = occ.decision || "pending";
+    const sim = occ.similarity != null ? `cos: ${occ.similarity.toFixed(3)}` : "no vector score";
+    const delta = occ.token_delta != null ? `-${occ.token_delta} tok` : "";
+    const spanStart = occ.span.start != null ? occ.span.start : occ.span[0];
+    const spanEnd = occ.span.end != null ? occ.span.end : occ.span[1];
+
+    return `
+      <div class="occurrence-card occurrence-${escapeHtml(status)}" data-index="${idx}">
+        <div class="occurrence-main">
+          <div class="occurrence-terms">
+            <code class="term-original">${escapeHtml(occ.original)}</code>
+            <span class="term-arrow">→</span>
+            <code class="term-replacement">${escapeHtml(occ.replacement)}</code>
+            <span class="occurrence-badge badge-${escapeHtml(status)}">${escapeHtml(status)}</span>
+          </div>
+          <div class="occurrence-sentence">
+            <span class="sentence-before">${escapeHtml(occ.sentence_before || '')}</span>
+            <span class="term-arrow">→</span>
+            <span class="sentence-after">${escapeHtml(occ.sentence_after || '')}</span>
+          </div>
+          <div class="occurrence-meta">
+            <small>${escapeHtml(occ.provenance || "lexical")} · ${escapeHtml(sim)} · ${escapeHtml(delta)} · span [${spanStart}:${spanEnd}]</small>
+          </div>
+        </div>
+        <div class="occurrence-buttons">
+          <button type="button" class="btn-occ ${status === 'accepted' ? 'active-accepted' : ''}" data-action="accept" data-index="${idx}">Accept</button>
+          <button type="button" class="btn-occ ${status === 'rejected' ? 'active-rejected' : ''}" data-action="reject" data-index="${idx}">Reject</button>
+          <button type="button" class="btn-occ ${status === 'pending' ? 'active-pending' : ''}" data-action="reset" data-index="${idx}">Reset</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  elements.occurrencesList.querySelectorAll(".btn-occ").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.index, 10);
+      const action = btn.dataset.action;
+      if (action === "accept") {
+        semanticReviewState.occurrences[idx].decision = "accepted";
+      } else if (action === "reject") {
+        semanticReviewState.occurrences[idx].decision = "rejected";
+      } else if (action === "reset") {
+        semanticReviewState.occurrences[idx].decision = "pending";
+      }
+      updateApprovalPreview();
+    });
+  });
+}
+
+let previewRequestId = 0;
+
+function invalidateStaleReviewState(reason) {
+  semanticReviewState.reviewVersion += 1;
+  semanticReviewState.invalidated = true;
+  semanticReviewState.savedTemplate = null;
+  semanticReviewState.savedAudit = null;
+  if (elements.persistTemplateButton) elements.persistTemplateButton.disabled = true;
+  if (elements.copyApprovedButton) elements.copyApprovedButton.disabled = true;
+  if (elements.exportTextButton) elements.exportTextButton.disabled = true;
+  if (elements.exportAuditButton) elements.exportAuditButton.disabled = true;
+  if (elements.approvalBannerMessage) {
+    elements.approvalBannerMessage.textContent = reason || "Source text was edited after compression. Run compression again to review suggestions.";
+    elements.approvalBannerMessage.className = "approval-banner-message warning";
+    elements.approvalBannerMessage.hidden = false;
+  }
+}
+
+async function updateApprovalPreview() {
+  if (!semanticReviewState.active || semanticReviewState.invalidated) return;
+  semanticReviewState.reviewVersion += 1;
+
+  // Clear any existing saved template and audit on decision change
+  semanticReviewState.savedTemplate = null;
+  semanticReviewState.savedAudit = null;
+  if (elements.copyApprovedButton) elements.copyApprovedButton.disabled = true;
+  if (elements.exportTextButton) elements.exportTextButton.disabled = true;
+  if (elements.exportAuditButton) elements.exportAuditButton.disabled = true;
+
+  if (elements.source.value !== semanticReviewState.originalText) {
+    invalidateStaleReviewState("Source text was edited after compression. Run compression again to review suggestions.");
+    return;
+  }
+
+  const currentReqId = ++previewRequestId;
+  try {
+    const payload = {
+      text: semanticReviewState.originalText,
+      decisions: semanticReviewState.occurrences,
+      config_hash: semanticReviewState.configHash,
+      encoding: semanticReviewState.encoding,
+      vector_identity: semanticReviewState.vectorIdentity,
+    };
+    const response = await fetch("/api/semantic/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+
+    // Prevent race conditions: discard superseded response
+    if (currentReqId !== previewRequestId) return;
+
+    if (elements.source.value !== semanticReviewState.originalText) {
+      invalidateStaleReviewState("Source text was edited after compression. Run compression again to review suggestions.");
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || "Preview calculation failed.");
+    }
+
+    semanticReviewState.composedText = data.composed_text;
+    semanticReviewState.tokensBefore = data.tokens_before;
+    semanticReviewState.tokensAfter = data.tokens_after;
+    semanticReviewState.savedTokens = data.saved_tokens;
+    semanticReviewState.savedPercent = data.saved_percent;
+    semanticReviewState.reviewStatus = data.review_status;
+
+    if (!data.is_valid) {
+      if (elements.approvalBannerMessage) {
+        elements.approvalBannerMessage.textContent = `Invalidated: ${data.invalidation_reason}`;
+        elements.approvalBannerMessage.className = "approval-banner-message error";
+        elements.approvalBannerMessage.hidden = false;
+      }
+      if (elements.reviewStatusBadge) {
+        elements.reviewStatusBadge.textContent = "Review: INVALIDATED";
+        elements.reviewStatusBadge.className = "meta-badge badge-invalidated";
+      }
+    } else {
+      if (elements.approvalBannerMessage) {
+        elements.approvalBannerMessage.hidden = true;
+      }
+      if (elements.reviewStatusBadge) {
+        elements.reviewStatusBadge.textContent = `Review: ${data.review_status.toUpperCase()}`;
+        elements.reviewStatusBadge.className = `meta-badge badge-${data.review_status}`;
+      }
+    }
+
+    document.querySelector("#tokens-after").textContent = data.tokens_after;
+    document.querySelector("#tokens-saved").textContent = data.saved_tokens;
+    const ratio = data.tokens_before > 0 ? data.tokens_after / data.tokens_before : 1;
+    document.querySelector("#ruler-fill").style.width = `${Math.min(100, Math.max(0, ratio * 100))}%`;
+    document.querySelector("#compressed-count").textContent = `${data.tokens_after} tokens · ${data.saved_percent}% saved`;
+
+    if (data.pending_count > 0) {
+      document.querySelector("#compressed-title").textContent =
+        `Review pending (${data.accepted_count} of ${semanticReviewState.occurrences.length} approved · ${data.pending_count} pending)`;
+    } else if (data.accepted_count > 0 && data.saved_tokens > 0 && data.is_valid) {
+      document.querySelector("#compressed-title").textContent =
+        `Candidate approved (${data.accepted_count} of ${semanticReviewState.occurrences.length} approved · unpersisted draft)`;
+    } else {
+      document.querySelector("#compressed-title").textContent =
+        `Review rejected (0 of ${semanticReviewState.occurrences.length} approved)`;
+    }
+
+    if (elements.approvalSummaryBadge) {
+      elements.approvalSummaryBadge.textContent =
+        `${data.accepted_count} of ${semanticReviewState.occurrences.length} approved (${data.pending_count} pending, ${data.rejected_count} rejected)`;
+      elements.approvalSummaryBadge.className = `meta-badge badge-${data.review_status}`;
+    }
+    if (elements.approvalRecountNotice) {
+      elements.approvalRecountNotice.textContent =
+        `Recounted under ${semanticReviewState.encoding}: ${data.tokens_before} → ${data.tokens_after} tokens (-${data.saved_tokens} tok, ${data.saved_percent}%)`;
+    }
+
+    if (elements.costSavedSummary) {
+      const price = elements.semanticPrice ? parseFloat(elements.semanticPrice.value) || 0.0 : 0.0;
+      const costSaved = data.saved_tokens * price / 1_000_000;
+      elements.costSavedSummary.textContent = ` · $${costSaved.toFixed(6)} saved`;
+    }
+
+    const { origHtml, compHtml } = annotateSemantic(
+      semanticReviewState.originalText,
+      semanticReviewState.composedText,
+      semanticReviewState.occurrences,
+      semanticReviewState.lastDecisions || []
+    );
+    document.querySelector("#annotated-text").innerHTML = origHtml;
+    document.querySelector("#compressed-text").innerHTML = compHtml;
+
+    renderOccurrencesList();
+
+    // Save button requirement: no pending, >=1 accepted, positive savings, is_valid, source unchanged
+    const canPersist = (
+      data.is_valid &&
+      data.pending_count === 0 &&
+      data.accepted_count >= 1 &&
+      data.saved_tokens > 0 &&
+      elements.source.value === semanticReviewState.originalText
+    );
+    if (elements.persistTemplateButton) {
+      elements.persistTemplateButton.disabled = !canPersist;
+    }
+    // Copy and export stay disabled until explicitly persisted
+    if (elements.copyApprovedButton) elements.copyApprovedButton.disabled = true;
+    if (elements.exportTextButton) elements.exportTextButton.disabled = true;
+    if (elements.exportAuditButton) elements.exportAuditButton.disabled = true;
+  } catch (err) {
+    if (currentReqId === previewRequestId && elements.approvalBannerMessage) {
+      elements.approvalBannerMessage.textContent = err.message;
+      elements.approvalBannerMessage.className = "approval-banner-message error";
+      elements.approvalBannerMessage.hidden = false;
+    }
+  }
+}
+
+async function persistApprovedTemplate() {
+  if (!semanticReviewState.active || semanticReviewState.invalidated) return;
+  const savingVersion = semanticReviewState.reviewVersion;
+  if (elements.source.value !== semanticReviewState.originalText) {
+    invalidateStaleReviewState("Source text was edited after compression. Run compression again before saving.");
+    return;
+  }
+  elements.persistTemplateButton.disabled = true;
+  elements.persistTemplateButton.textContent = "Saving template…";
+  try {
+    const payload = {
+      text: semanticReviewState.originalText,
+      decisions: semanticReviewState.occurrences,
+      reviewer: "local-user",
+      ...(semanticReviewState.activeRequestConfig || {}),
+      config_hash: semanticReviewState.configHash,
+      vector_identity: semanticReviewState.vectorIdentity,
+      metadata: {
+        price_per_million: elements.semanticPrice ? parseFloat(elements.semanticPrice.value) || 0.0 : 0.0,
+      },
+    };
+    const response = await fetch("/api/semantic/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to persist approved template.");
+    }
+    if (semanticReviewState.invalidated || savingVersion !== semanticReviewState.reviewVersion || elements.source.value !== semanticReviewState.originalText) {
+      invalidateStaleReviewState("Source text or semantic settings changed while saving. Re-run compression before exporting.");
+      return;
+    }
+    semanticReviewState.savedTemplate = data.template;
+    semanticReviewState.savedAudit = data.audit;
+
+    if (elements.approvalBannerMessage) {
+      elements.approvalBannerMessage.innerHTML = `
+        <strong>Template persisted locally:</strong> <code>${escapeHtml(data.template.template_id)}</code><br>
+        Bound to content hash <code>${escapeHtml(data.template.binding.original_hash.slice(0, 16))}…</code> ·
+        config hash <code>${escapeHtml(data.template.binding.config_hash.slice(0, 16))}…</code> ·
+        tokenizer <code>${escapeHtml(data.template.binding.tokenizer_name)}</code> ·
+        vectors <code>${escapeHtml(data.template.binding.vector_identity)}</code>.
+      `;
+      elements.approvalBannerMessage.className = "approval-banner-message success";
+      elements.approvalBannerMessage.hidden = false;
+    }
+    document.querySelector("#compressed-title").textContent =
+      `Persisted approved template (${data.template.template_id})`;
+    if (elements.copyApprovedButton) elements.copyApprovedButton.disabled = false;
+    if (elements.exportTextButton) elements.exportTextButton.disabled = false;
+    if (elements.exportAuditButton) elements.exportAuditButton.disabled = false;
+  } catch (err) {
+    if (elements.approvalBannerMessage) {
+      elements.approvalBannerMessage.textContent = err.message;
+      elements.approvalBannerMessage.className = "approval-banner-message error";
+      elements.approvalBannerMessage.hidden = false;
+    }
+  } finally {
+    elements.persistTemplateButton.textContent = "Save Approved Template";
+    const hasPending = semanticReviewState.occurrences.some(o => o.decision === "pending");
+    const hasAccepted = semanticReviewState.occurrences.some(o => o.decision === "accepted");
+    elements.persistTemplateButton.disabled = semanticReviewState.invalidated || hasPending || !hasAccepted || elements.source.value !== semanticReviewState.originalText;
+  }
+}
+
+function downloadFile(filename, content, mimeType = "text/plain") {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportApprovedText() {
+  if (!semanticReviewState.savedTemplate) {
+    alert("Please save the approved template before exporting.");
+    return;
+  }
+  const tplId = semanticReviewState.savedTemplate.template_id;
+  downloadFile(`${tplId}-approved.txt`, semanticReviewState.savedTemplate.composed_text, "text/plain;charset=utf-8");
+}
+
+function exportAuditJson() {
+  if (!semanticReviewState.savedAudit) {
+    alert("Please save the approved template before exporting audit records.");
+    return;
+  }
+  const tplId = semanticReviewState.savedTemplate ? semanticReviewState.savedTemplate.template_id : "template";
+  downloadFile(`${tplId}-audit.json`, JSON.stringify(semanticReviewState.savedAudit, null, 2), "application/json;charset=utf-8");
+}
+
+async function copyApprovedText() {
+  if (!semanticReviewState.savedTemplate) return;
+  try {
+    await navigator.clipboard.writeText(semanticReviewState.savedTemplate.composed_text);
+    const originalText = elements.copyApprovedButton.textContent;
+    elements.copyApprovedButton.textContent = "Copied!";
+    setTimeout(() => { elements.copyApprovedButton.textContent = originalText; }, 2000);
+  } catch (_) {
+    const textarea = document.createElement("textarea");
+    textarea.value = semanticReviewState.savedTemplate.composed_text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    const originalText = elements.copyApprovedButton.textContent;
+    elements.copyApprovedButton.textContent = "Copied!";
+    setTimeout(() => { elements.copyApprovedButton.textContent = originalText; }, 2000);
+  }
+}
+
+function renderResult(data, requestPayload = null) {
+  // Ignore any preview response started for the preceding compression result.
+  previewRequestId += 1;
   const mode = data.mode;
   const isHybrid = mode === "hybrid_sentinel";
   const isSemantic = mode === "semantic";
@@ -277,35 +663,112 @@ function renderResult(data) {
       : "B0";
     document.querySelector("#result-mode").textContent =
       `Semantic substitution · ${armLabel} · ${data.token_counter || 'tiktoken'} · review pending`;
-  } else if (isHybrid) {
-    document.querySelector("#result-mode").textContent =
-      "Guarded LLMLingua-2 · protected clauses are restored and checked";
+
+    semanticReviewState.active = true;
+    semanticReviewState.originalText = data.original;
+    semanticReviewState.configHash = data.config_hash || "";
+    semanticReviewState.encoding = (data.token_counter || (elements.semanticEncoding ? elements.semanticEncoding.value : "o200k_base")).replace(/^tiktoken:/, "");
+    semanticReviewState.vectorIdentity = data.vector_label || "none";
+    semanticReviewState.lastDecisions = data.decisions || [];
+    semanticReviewState.occurrences = (data.occurrences || (data.edits || []).map(edit => ({
+      span: edit.span,
+      original: edit.original,
+      replacement: edit.replacement,
+      decision: "pending",
+      provenance: edit.provenance,
+      similarity: edit.similarity,
+      token_delta: edit.token_delta,
+      pos: edit.pos,
+      sentence_before: edit.sentence_before,
+      sentence_after: edit.sentence_after,
+    })));
+    semanticReviewState.composedText = data.original;
+    semanticReviewState.tokensBefore = data.tokens_before;
+    semanticReviewState.tokensAfter = data.tokens_before;
+    semanticReviewState.savedTokens = 0;
+    semanticReviewState.savedPercent = 0.0;
+    semanticReviewState.activeRequestConfig = requestPayload ? {
+      arm: requestPayload.arm,
+      use_wordnet: requestPayload.use_wordnet,
+      vector_source: requestPayload.vector_source,
+      ...(requestPayload.vector_path ? { vector_path: requestPayload.vector_path } : {}),
+      min_embedding_similarity: requestPayload.min_embedding_similarity,
+      adaptive_similarity: requestPayload.adaptive_similarity,
+      max_candidates: requestPayload.max_candidates,
+      embedding_slots: requestPayload.embedding_slots,
+      encoding: requestPayload.encoding,
+    } : null;
+    semanticReviewState.invalidated = false;
+    semanticReviewState.reviewVersion += 1;
+    semanticReviewState.reviewStatus = "pending";
+    semanticReviewState.savedTemplate = null;
+    semanticReviewState.savedAudit = null;
+
+    if (elements.semanticApprovalWorkflow) {
+      elements.semanticApprovalWorkflow.hidden = false;
+    }
+    if (elements.approvalBannerMessage) {
+      elements.approvalBannerMessage.hidden = true;
+      elements.approvalBannerMessage.textContent = "";
+    }
+    if (elements.persistTemplateButton) elements.persistTemplateButton.disabled = true;
+    if (elements.copyApprovedButton) elements.copyApprovedButton.disabled = true;
+    if (elements.exportTextButton) elements.exportTextButton.disabled = true;
+    if (elements.exportAuditButton) elements.exportAuditButton.disabled = true;
+
+    renderOccurrencesList();
+
+    if (elements.approvalSummaryBadge) {
+      elements.approvalSummaryBadge.textContent =
+        `0 of ${semanticReviewState.occurrences.length} approved (${semanticReviewState.occurrences.length} pending)`;
+      elements.approvalSummaryBadge.className = "meta-badge badge-pending";
+    }
+    if (elements.approvalRecountNotice) {
+      elements.approvalRecountNotice.textContent =
+        `Recounted (${semanticReviewState.encoding}): ${data.tokens_before} tokens (0 approved · review pending)`;
+    }
+
+    document.querySelector("#compressed-title").textContent =
+      `Approved output (0 of ${semanticReviewState.occurrences.length} approved · review pending)`;
+    document.querySelector("#original-title").textContent = "Original, annotated";
+    document.querySelector("#tokens-after").textContent = data.tokens_before;
+    document.querySelector("#tokens-saved").textContent = "0";
+    document.querySelector("#ruler-fill").style.width = "100%";
+    document.querySelector("#original-count").textContent = `${data.tokens_before} tokens`;
+    document.querySelector("#compressed-count").textContent = `${data.tokens_before} tokens · 0.0% saved`;
+
+    if (elements.costSavedSummary) {
+      elements.costSavedSummary.textContent = " · gross estimate only (review pending, default unchanged)";
+    }
   } else {
-    document.querySelector("#result-mode").textContent =
-      "Tree pruning · each cut is recorded below";
-  }
-
-  document.querySelector("#compressed-title").textContent =
-    isSemantic ? "Proposed output" : isHybrid ? "Hybrid compressed" : "Compressed";
-  document.querySelector("#original-title").textContent =
-    isHybrid ? "Original" : "Original, annotated";
-
-  document.querySelector("#tokens-after").textContent = data.tokens_after;
-  document.querySelector("#tokens-saved").textContent = data.saved_tokens;
-  const totalMs = data.timings_ms ? (data.timings_ms.total != null ? data.timings_ms.total : 0) : 0;
-  document.querySelector("#time-taken").textContent = Math.round(totalMs);
-  document.querySelector("#ruler-fill").style.width = `${Math.min(100, Math.max(0, data.ratio * 100))}%`;
-  document.querySelector("#original-count").textContent = `${data.tokens_before} tokens`;
-  document.querySelector("#compressed-count").textContent = `${data.tokens_after} tokens · ${data.saved_percent}% saved`;
-
-  // Cost saved summary in ruler
-  if (elements.costSavedSummary) {
-    if (isSemantic && data.cost_saved_usd != null) {
-      elements.costSavedSummary.textContent = ` · $${data.cost_saved_usd.toFixed(6)} saved`;
+    semanticReviewState.active = false;
+    if (elements.semanticApprovalWorkflow) {
+      elements.semanticApprovalWorkflow.hidden = true;
+    }
+    if (isHybrid) {
+      document.querySelector("#result-mode").textContent =
+        "Guarded LLMLingua-2 · protected clauses are restored and checked";
+      document.querySelector("#compressed-title").textContent = "Hybrid compressed";
+      document.querySelector("#original-title").textContent = "Original";
     } else {
+      document.querySelector("#result-mode").textContent =
+        "Tree pruning · each cut is recorded below";
+      document.querySelector("#compressed-title").textContent = "Compressed";
+      document.querySelector("#original-title").textContent = "Original, annotated";
+    }
+
+    document.querySelector("#tokens-after").textContent = data.tokens_after;
+    document.querySelector("#tokens-saved").textContent = data.saved_tokens;
+    document.querySelector("#ruler-fill").style.width = `${Math.min(100, Math.max(0, data.ratio * 100))}%`;
+    document.querySelector("#original-count").textContent = `${data.tokens_before} tokens`;
+    document.querySelector("#compressed-count").textContent = `${data.tokens_after} tokens · ${data.saved_percent}% saved`;
+    if (elements.costSavedSummary) {
       elements.costSavedSummary.textContent = "";
     }
   }
+
+  const totalMs = data.timings_ms ? (data.timings_ms.total != null ? data.timings_ms.total : 0) : 0;
+  document.querySelector("#time-taken").textContent = Math.round(totalMs);
 
   // Semantic metadata banner & warnings
   if (elements.semanticBanner) {
@@ -326,7 +789,7 @@ function renderResult(data) {
       }
       if (elements.costSavedBadge) {
         const price = data.input_price_per_million != null ? data.input_price_per_million : 0;
-        elements.costSavedBadge.textContent = `Est. saved: $${(data.cost_saved_usd || 0).toFixed(6)} (@ $${price.toFixed(2)}/1M)`;
+        elements.costSavedBadge.textContent = `Gross input est.: $${(data.cost_saved_usd || 0).toFixed(6)} (@ $${price.toFixed(2)}/1M · unreviewed proposal)`;
       }
       if (elements.semanticWarningsList) {
         const warnings = data.warnings || [];
@@ -343,7 +806,12 @@ function renderResult(data) {
 
   // Annotations
   if (isSemantic) {
-    const { origHtml, compHtml } = annotateSemantic(data.original, data.compressed, data.edits || [], data.decisions || []);
+    const { origHtml, compHtml } = annotateSemantic(
+      data.original,
+      semanticReviewState.composedText,
+      semanticReviewState.occurrences,
+      data.decisions || []
+    );
     document.querySelector("#annotated-text").innerHTML = origHtml;
     document.querySelector("#compressed-text").innerHTML = compHtml;
   } else if (isHybrid) {
@@ -458,6 +926,10 @@ function updateSemanticSettings() {
       elements.semanticAdaptiveSimilarity.checked = false;
     }
   }
+
+  if (semanticReviewState.active) {
+    invalidateStaleReviewState("Semantic configuration changed. Re-run compression to generate suggestions under the new settings.");
+  }
 }
 
 function updateMode() {
@@ -556,7 +1028,7 @@ async function compressText() {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Compression failed.");
-    renderResult(data);
+    renderResult(data, payload);
   } catch (error) {
     elements.error.textContent = error.message;
     elements.error.hidden = false;
@@ -625,12 +1097,50 @@ async function loadExamples() {
 function updateCharacterCount() {
   const length = elements.source.value.length;
   elements.characterCount.textContent = `${length.toLocaleString()} character${length === 1 ? "" : "s"}`;
+  if (semanticReviewState.active && elements.source.value !== semanticReviewState.originalText) {
+    invalidateStaleReviewState("Input text was modified: template bindings are invalidated. Unchanged text preserved. Re-run compression to review new suggestions.");
+    if (elements.reviewStatusBadge) {
+      elements.reviewStatusBadge.textContent = "Review: INVALIDATED (STALE CONTENT)";
+      elements.reviewStatusBadge.className = "meta-badge badge-invalidated";
+    }
+  }
 }
 
 elements.form.addEventListener("submit", event => { event.preventDefault(); compressText(); });
 elements.source.addEventListener("input", updateCharacterCount);
 elements.ratio.addEventListener("input", () => { elements.ratioOutput.textContent = `${elements.ratio.value}%`; });
 elements.modes.forEach(mode => mode.addEventListener("change", updateMode));
+
+if (elements.approveAllButton) {
+  elements.approveAllButton.addEventListener("click", () => {
+    semanticReviewState.occurrences.forEach(occ => { occ.decision = "accepted"; });
+    updateApprovalPreview();
+  });
+}
+if (elements.rejectAllButton) {
+  elements.rejectAllButton.addEventListener("click", () => {
+    semanticReviewState.occurrences.forEach(occ => { occ.decision = "rejected"; });
+    updateApprovalPreview();
+  });
+}
+if (elements.resetAllButton) {
+  elements.resetAllButton.addEventListener("click", () => {
+    semanticReviewState.occurrences.forEach(occ => { occ.decision = "pending"; });
+    updateApprovalPreview();
+  });
+}
+if (elements.persistTemplateButton) {
+  elements.persistTemplateButton.addEventListener("click", persistApprovedTemplate);
+}
+if (elements.copyApprovedButton) {
+  elements.copyApprovedButton.addEventListener("click", copyApprovedText);
+}
+if (elements.exportTextButton) {
+  elements.exportTextButton.addEventListener("click", exportApprovedText);
+}
+if (elements.exportAuditButton) {
+  elements.exportAuditButton.addEventListener("click", exportAuditJson);
+}
 
 if (elements.semanticArm) {
   elements.semanticArm.addEventListener("change", updateSemanticSettings);
@@ -649,8 +1159,29 @@ if (elements.semanticMinSimilarity) {
     if (elements.semanticMinSimilarityOutput) {
       elements.semanticMinSimilarityOutput.textContent = elements.semanticMinSimilarity.value;
     }
+    if (semanticReviewState.active) {
+      invalidateStaleReviewState("Semantic settings changed. Re-run compression before saving.");
+    }
   });
 }
+[
+  elements.semanticEncoding,
+  elements.semanticVectorPath,
+  elements.semanticEmbeddingSlots,
+  elements.semanticWordnet,
+  elements.semanticAdaptiveSimilarity,
+].filter(Boolean).forEach(control => {
+  control.addEventListener("input", () => {
+    if (semanticReviewState.active) {
+      invalidateStaleReviewState("Semantic settings changed. Re-run compression before saving.");
+    }
+  });
+  control.addEventListener("change", () => {
+    if (semanticReviewState.active) {
+      invalidateStaleReviewState("Semantic settings changed. Re-run compression before saving.");
+    }
+  });
+});
 
 elements.tabs.forEach(tab => {
   tab.addEventListener("click", () => setView(tab.dataset.view));

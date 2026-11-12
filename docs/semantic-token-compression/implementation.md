@@ -22,6 +22,8 @@ This record turns the September 24 research and debate into a traceable implemen
 
 **Interface update, 2026-10-22:** the interactive semantic demo is now part of the existing Ling Compressor web workbench (`python scripts/ui.py`). The separate Streamlit prototype was removed so all three compression paths share one visual interface and launch command. This demo does not fulfill the later reviewed-template workflow or the human and downstream evaluation milestones below.
 
+**Evidence update, 2026-11-11:** a [real GloVe public-proxy pilot](real-vector-pilot-2026-11-11.md) now compares U/B0/B1/B2 on frozen Dolly instruction prompts and AG News articles. B2 adds only 2 tokens beyond B1 across 400 Dolly prompts and has meaning-changing spot-inspected suggestions. Its held-out incremental interval crosses zero. This rejects automatic embedding-based rewriting for the tested configuration; human review, actual production prompts, pinned LLM task evaluation, and mentor check-ins remain open. The [provisional release gates](production-gates.md) state the required evidence.
+
 ## Scope and evidence boundary
 
 English prose and an explicit local tokenizer are the starting scope. The experimental arms are unchanged input (`U`), curated rules plus WordNet (`B0`), the same candidate pool ranked using vectors (`B1`), and the baseline pool plus additional vector neighbors (`B2`). Phrase substitutions are labeled separately from word substitutions. The engine proposes occurrence-specific edits, protects structured/exact content, counts complete outputs, and exports judgments for later human review.
@@ -44,7 +46,7 @@ These requirements trace to the user proposal, the feasibility report, and the d
 | SEM-REQ-008 | Export review records for candidate edits and composed outputs. Leave human judgments unfilled unless a person actually reviewed them; identify fixture or synthetic data. | Debate sections 1 and 4 | Implemented; SEM-EVID-004/006 |
 | SEM-REQ-009 | Report aggregate savings over all original tokens, including unchanged prompts; show changed-input coverage and per-arm counts. Label the workload, tokenizer, and any limitations beside results. | Debate section 1 | Implemented; SEM-EVID-004/006 |
 | SEM-REQ-010 | Verify deterministic outputs, protected-content behavior, fair pools/budgets, nonpositive-gain fallback, malformed assets, and export/reproduction behavior. Keep existing compressor tests passing. | Debate hard invariants | Verified; SEM-EVID-004/008 |
-| SEM-REQ-011 | Conduct the representative opportunity study: roughly 200 preselected prompts, stratified review of roughly 200–400 edits plus composed outputs, and a documented continue/stop decision. Pilot size estimates are not accuracy-certification criteria. | Debate section 1 | Not started; evidence gate |
+| SEM-REQ-011 | Conduct the representative opportunity study: roughly 200 preselected prompts, stratified review of roughly 200–400 edits plus composed outputs, and a documented continue/stop decision. Pilot size estimates are not accuracy-certification criteria. | Debate section 1 | Partial: 400 frozen public-proxy prompts and a stop decision for automatic use; blinded human review and intended workload sample remain open |
 | SEM-REQ-012 | Before automatic use, evaluate held-out downstream tasks, prompt-level harmful edits, contextual validation cost, and net economics with predefined thresholds and adequate statistical precision. | Debate sections 3–4 | Deferred; evidence gate |
 | SEM-REQ-013 | Validate submitted annotations against a frozen run, reject changed review subjects and invalid judgments, retain pending/partial states, and report changed outputs separately from controls and candidate edits. | Debate sections 1 and 4; continuation, 2026-10-07 | Implemented and verified; SEM-EVID-008 |
 
@@ -104,10 +106,10 @@ These requirements trace to the user proposal, the feasibility report, and the d
 | --- | --- | --- | --- |
 | SEM-M0 | Traceable documentation and Obsidian navigation | Metadata, ID tables, backlinks, filesystem link checks and opened note; SEM-EVID-002/005/007 | Complete |
 | SEM-M1 | Executable offline substitution pilot | API/CLI, common protected engine, B0/B1/B2, deterministic JSONL audits/review export, focused tests, documented smoke run; SEM-EVID-004/006 | Complete |
-| SEM-M2 | Representative opportunity study and decision | Frozen workload/splits, human judgments, complete-output measurements, incremental embedding analysis | Not started |
+| SEM-M2 | Representative opportunity study and decision | Frozen workload/splits, human judgments, complete-output measurements, incremental embedding analysis | In progress; public-proxy run measured, human and production-workload evidence open |
 | SEM-M3 | One contextual validator experiment | Rules-only/model comparison; frozen development thresholds; runtime/memory evidence | Conditional on SEM-M2 |
 | SEM-M4 | Held-out task and economics evaluation | Paired accuracy/failure metrics, intervals, explicit thresholds, cache/recovery costs | Conditional |
-| SEM-M5 | Reviewed-template Streamlit workflow | Inspect/edit/reject/export flow; audit shown; measured/estimated savings separated | Deferred until evidence supports it |
+| SEM-M5 | Reviewed-template workflow in unified workbench | Inspect, accept/reject, recount, save, validate, and export exact authored templates with an audit; measured and estimated savings separated | In progress; implementation under independent approval-bypass review |
 | SEM-M6 | Hybrid ordering experiment | Standalone versus combined pipelines; marginal attribution; renewed protections | Deferred |
 
 ## Implementation and verification evidence

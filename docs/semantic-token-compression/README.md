@@ -15,9 +15,11 @@ tags:
 
 # Semantic token compression
 
-The offline substitution pilot and review reporter are implemented. The [implementation record](implementation.md) tracks requirements, decisions, test results, and the next research gate. The six authored smoke inputs and synthetic vectors verify the software; a representative study and human review are still pending.
+The offline substitution pilot and review reporter are implemented. The [implementation record](implementation.md) tracks requirements, decisions, test results, and the next research gate. A [real-vector public-proxy pilot](real-vector-pilot-2026-11-11.md) is complete; human review and evaluation on the intended production workload are still pending. The earlier six authored smoke inputs and synthetic vectors verify the software only.
 
 The interactive semantic demo is available from the shared Ling Compressor workbench (`python scripts/ui.py`). Select **Semantic substitution** alongside the existing tree-pruning and guarded-model paths. The earlier standalone Streamlit prototype was retired when the interfaces were consolidated.
+
+For a repeated authored prompt, the workbench now lets a person review each proposed edit, save an exact approved template, and export its audit. The [usage guide](usage.md#review-and-reuse-an-exact-prompt-template) describes the local workflow. Automatic vector substitution remains disabled by the [real-vector pilot decision](real-vector-pilot-2026-11-11.md).
 
 | Read | Purpose |
 | --- | --- |
@@ -26,6 +28,8 @@ The interactive semantic demo is available from the shared Ling Compressor workb
 | [Implementation record](implementation.md) · SEM-IMPL-001 | Requirements, decisions, milestones, and dated evidence |
 | [Pilot usage](usage.md) · SEM-USAGE-001 | Setup, CLI/API, review rubric, and reproduction |
 | [Project board and mentor timeline](project-board.md) | Branch-specific delivery tickets, verification gates, and three check-ins |
+| [Real-vector pilot](real-vector-pilot-2026-11-11.md) | Dolly and AG News token results, failure inspection, and automatic-use decision |
+| [Production gates](production-gates.md) | Provisional promotion thresholds and exact-template review boundary |
 
 ## Evidence
 

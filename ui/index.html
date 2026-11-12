@@ -25,7 +25,7 @@
         <section class="intro" aria-labelledby="page-title">
         <div>
           <h1 id="page-title">See what survives<br>the edit.</h1>
-          <p class="lede">Paste a sentence or open an example. Compare careful tree pruning with a guarded model pass.</p>
+          <p class="lede">Paste a sentence or open an example. Compare tree pruning, guarded hybrid compression, and review-first semantic substitution.</p>
         </div>
         <div class="legend" aria-label="Annotation legend">
           <span><i class="swatch cut"></i>Removed</span>
@@ -199,6 +199,39 @@
               <div id="compressed-text" class="text-panel compressed-panel"></div>
             </article>
           </div>
+
+          <section id="semantic-approval-workflow" class="semantic-approval-workflow" hidden aria-labelledby="approval-workflow-title">
+            <header class="approval-header">
+              <div>
+                <h3 id="approval-workflow-title" class="approval-title">Occurrence Review &amp; Template Approval</h3>
+                <p class="approval-subtitle">
+                  Review-first production workflow: suggestions remain pending by default until you explicitly accept or reject each occurrence. Preview composed text, recount complete-text tokens, and export an approved template audit.
+                </p>
+              </div>
+              <div class="approval-bulk-actions">
+                <button id="approve-all-button" type="button" class="btn-approval-action">Accept all</button>
+                <button id="reject-all-button" type="button" class="btn-approval-action">Reject all</button>
+                <button id="reset-all-button" type="button" class="btn-approval-action">Reset to pending</button>
+              </div>
+            </header>
+
+            <div id="occurrences-list" class="occurrences-list" role="region" aria-label="Selected occurrences for review"></div>
+
+            <div class="approval-footer">
+              <div class="approval-status-group">
+                <span id="approval-summary-badge" class="meta-badge badge-pending">0 of 0 approved</span>
+                <span id="approval-recount-notice" class="approval-notice"></span>
+              </div>
+              <div class="approval-buttons-group">
+                <button id="persist-template-button" type="button" class="btn-approval-primary">Save Approved Template</button>
+                <button id="copy-approved-button" type="button" class="btn-approval-action">Copy Approved Text</button>
+                <button id="export-text-button" type="button" class="btn-approval-action">Export Text (.txt)</button>
+                <button id="export-audit-button" type="button" class="btn-approval-action">Export Audit (.json)</button>
+              </div>
+            </div>
+
+            <div id="approval-banner-message" class="approval-banner-message" hidden></div>
+          </section>
 
           <div id="audit-strip" class="audit-strip">
             <div><strong id="deletion-count">0</strong><span id="deletion-label">cuts made</span></div>
