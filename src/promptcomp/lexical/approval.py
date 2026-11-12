@@ -384,6 +384,9 @@ def preview_approval(
         d if isinstance(d, OccurrenceReview) else OccurrenceReview.from_dict(d)
         for d in decisions
     ]
+    accepted_count = sum(1 for d in parsed_decisions if d.decision == "accepted")
+    rejected_count = sum(1 for d in parsed_decisions if d.decision == "rejected")
+    pending_count = sum(1 for d in parsed_decisions if d.decision == "pending")
 
     if counter is None:
         counter = local_counter(tokenizer_name)
@@ -402,6 +405,9 @@ def preview_approval(
             "review_status": "invalidated",
             "is_valid": False,
             "invalidation_reason": reason,
+            "accepted_count": accepted_count,
+            "rejected_count": rejected_count,
+            "pending_count": pending_count,
             "decisions": [d.to_dict() for d in parsed_decisions],
             "binding": {
                 "original_hash": compute_content_hash(original_text),
@@ -425,6 +431,9 @@ def preview_approval(
             "review_status": "invalidated",
             "is_valid": False,
             "invalidation_reason": str(exc),
+            "accepted_count": accepted_count,
+            "rejected_count": rejected_count,
+            "pending_count": pending_count,
             "decisions": [d.to_dict() for d in parsed_decisions],
             "binding": {
                 "original_hash": compute_content_hash(original_text),
@@ -438,10 +447,6 @@ def preview_approval(
     tokens_after = counter.count(composed)
     saved = tokens_before - tokens_after
     saved_percent = round(100 * saved / tokens_before, 1) if tokens_before > 0 else 0.0
-
-    accepted_count = sum(1 for d in parsed_decisions if d.decision == "accepted")
-    rejected_count = sum(1 for d in parsed_decisions if d.decision == "rejected")
-    pending_count = sum(1 for d in parsed_decisions if d.decision == "pending")
 
     if not parsed_decisions:
         review_status = "pending"

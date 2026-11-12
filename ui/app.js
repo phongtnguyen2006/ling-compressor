@@ -444,6 +444,9 @@ async function updateApprovalPreview() {
     semanticReviewState.savedTokens = data.saved_tokens;
     semanticReviewState.savedPercent = data.saved_percent;
     semanticReviewState.reviewStatus = data.review_status;
+    const acceptedCount = data.accepted_count ?? semanticReviewState.occurrences.filter(o => o.decision === "accepted").length;
+    const rejectedCount = data.rejected_count ?? semanticReviewState.occurrences.filter(o => o.decision === "rejected").length;
+    const pendingCount = data.pending_count ?? semanticReviewState.occurrences.filter(o => o.decision === "pending").length;
 
     if (!data.is_valid) {
       if (elements.approvalBannerMessage) {
@@ -471,12 +474,14 @@ async function updateApprovalPreview() {
     document.querySelector("#ruler-fill").style.width = `${Math.min(100, Math.max(0, ratio * 100))}%`;
     document.querySelector("#compressed-count").textContent = `${data.tokens_after} tokens · ${data.saved_percent}% saved`;
 
-    if (data.pending_count > 0) {
+    if (!data.is_valid) {
+      document.querySelector("#compressed-title").textContent = "Review invalidated · original text retained";
+    } else if (pendingCount > 0) {
       document.querySelector("#compressed-title").textContent =
-        `Review pending (${data.accepted_count} of ${semanticReviewState.occurrences.length} approved · ${data.pending_count} pending)`;
-    } else if (data.accepted_count > 0 && data.saved_tokens > 0 && data.is_valid) {
+        `Review pending (${acceptedCount} of ${semanticReviewState.occurrences.length} approved · ${pendingCount} pending)`;
+    } else if (acceptedCount > 0 && data.saved_tokens > 0) {
       document.querySelector("#compressed-title").textContent =
-        `Candidate approved (${data.accepted_count} of ${semanticReviewState.occurrences.length} approved · unpersisted draft)`;
+        `Candidate approved (${acceptedCount} of ${semanticReviewState.occurrences.length} approved · unpersisted draft)`;
     } else {
       document.querySelector("#compressed-title").textContent =
         `Review rejected (0 of ${semanticReviewState.occurrences.length} approved)`;
@@ -484,7 +489,7 @@ async function updateApprovalPreview() {
 
     if (elements.approvalSummaryBadge) {
       elements.approvalSummaryBadge.textContent =
-        `${data.accepted_count} of ${semanticReviewState.occurrences.length} approved (${data.pending_count} pending, ${data.rejected_count} rejected)`;
+        `${acceptedCount} of ${semanticReviewState.occurrences.length} approved (${pendingCount} pending, ${rejectedCount} rejected)`;
       elements.approvalSummaryBadge.className = `meta-badge badge-${data.review_status}`;
     }
     if (elements.approvalRecountNotice) {
@@ -512,8 +517,8 @@ async function updateApprovalPreview() {
     // Save button requirement: no pending, >=1 accepted, positive savings, is_valid, source unchanged
     const canPersist = (
       data.is_valid &&
-      data.pending_count === 0 &&
-      data.accepted_count >= 1 &&
+      pendingCount === 0 &&
+      acceptedCount >= 1 &&
       data.saved_tokens > 0 &&
       elements.source.value === semanticReviewState.originalText
     );

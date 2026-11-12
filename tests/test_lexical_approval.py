@@ -364,6 +364,15 @@ def test_protected_spans_prevent_approval_and_application(counter):
     assert preview["review_status"] == "invalidated"
     assert "protected" in preview["invalidation_reason"].lower()
     assert preview["composed_text"] == text
+    assert (preview["accepted_count"], preview["rejected_count"], preview["pending_count"]) == (1, 0, 0)
+
+
+def test_validation_rejects_oversized_text_before_template_lookup():
+    with pytest.raises(ValueError, match="under 1 MB"):
+        ui_server._semantic_validate_payload({
+            "text": "x" * (ui_server.MAX_INPUT_BYTES + 1),
+            "template_id": "missing",
+        })
 
 
 def test_overlapping_occurrence_spans_invalidation(counter):

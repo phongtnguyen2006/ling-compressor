@@ -525,6 +525,8 @@ def _semantic_validate_payload(payload: dict) -> dict:
     text = payload.get("text")
     if not isinstance(text, str):
         raise ValueError("text must be a string.")
+    if len(text.encode("utf-8")) > MAX_INPUT_BYTES:
+        raise ValueError("Input is too large. Keep text under 1 MB.")
 
     template_id = payload.get("template_id")
     if not template_id or not isinstance(template_id, str):
