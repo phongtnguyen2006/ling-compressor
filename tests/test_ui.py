@@ -157,10 +157,28 @@ def test_semantic_local_vectors_are_cached_by_file_metadata(tmp_path):
     ui_server._compress_payload(payload)
     assert ui_server._vector_index.cache_info().hits == 1
     assert first["vector_label"] == str(path.resolve())
+    assert first["vector_size"] == {"source_rows": 12, "retained_rows": 12, "dimensions": 4}
     path.write_text(source.replace("12 4\n", "13 4\n", 1) + "extra 0 0 0 1\n", encoding="utf-8")
     changed = ui_server._compress_payload(payload)
     assert ui_server._vector_index.cache_info().misses == 2
     assert changed["provider_metadata"]["vectors"]["source_rows"] == 13
+
+
+def test_semantic_local_vector_retention_reaches_index_and_response(tmp_path, monkeypatch):
+    path = tmp_path / "vectors.txt"
+    path.write_text(ui_server.SYNTHETIC_VECTORS.read_text(encoding="utf-8"), encoding="utf-8")
+    requested = []
+    def capture_index(source, modified_ns, size, max_words):
+        requested.append(max_words)
+        return ui_server.VectorIndex.from_text(source, max_words=max_words)
+    monkeypatch.setattr(ui_server, "_vector_index", capture_index)
+    result = ui_server._compress_payload({
+        "mode": "semantic", "text": "Write a short answer.", "arm": "b1",
+        "vector_source": "local", "vector_path": str(path), "vector_max_words": 400000,
+    })
+    assert requested == [400000]
+    assert result["vector_size"] == {"source_rows": 12, "retained_rows": 12, "dimensions": 4}
+    assert result["provider_metadata"]["vectors"]["max_words"] == 400000
 
 
 @pytest.mark.parametrize("settings, message", [
@@ -169,6 +187,9 @@ def test_semantic_local_vectors_are_cached_by_file_metadata(tmp_path):
     ({"use_wordnet": "false"}, "use_wordnet"),
     ({"vector_source": "remote"}, "vector_source"),
     ({"vector_source": ["synthetic"]}, "vector_source"),
+    ({"vector_max_words": True}, "vector_max_words"),
+    ({"vector_max_words": "400000"}, "vector_max_words"),
+    ({"vector_max_words": 250000}, "vector_max_words"),
     ({"arm": "b1", "vector_source": "local"}, "vector_path"),
     ({"arm": "b2", "vector_source": "local", "vector_path": "/no/such/vectors.txt"}, "Vector file"),
     ({"encoding": "invalid"}, "encoding"),
@@ -249,3 +270,110 @@ def test_semantic_http_routes_return_examples_result_and_validation_error():
 def test_compress_payload_rejects_invalid_input(payload):
     with pytest.raises(ValueError):
         ui_server._compress_payload(payload)
+
+
+def test_semantic_vector_retention_selectable_and_metadata():
+    text = "We discuss the methodologies. These projects necessitate planning."
+    # Default 50k
+    default_res = ui_server._compress_payload({
+        "mode": "semantic", "text": text, "arm": "b2", "vector_source": "synthetic",
+    })
+    assert default_res["provider_metadata"]["vectors"]["max_words"] == 50_000
+    assert default_res["vector_size"] == {"source_rows": 12, "retained_rows": 12, "dimensions": 4}
+    assert not any("400k" in w.lower() for w in default_res["warnings"])
+    assert "synthetic" in default_res["vector_label"].lower()
+
+    # Selectable 10k
+    res_10k = ui_server._compress_payload({
+        "mode": "semantic", "text": text, "arm": "b2", "vector_source": "synthetic",
+        "vector_max_words": 10_000,
+    })
+    assert res_10k["provider_metadata"]["vectors"]["max_words"] == 10_000
+    assert res_10k["vector_size"] == {"source_rows": 12, "retained_rows": 12, "dimensions": 4}
+    assert not any("400k" in w.lower() for w in res_10k["warnings"])
+
+    # Selectable 400k with cold load warning
+    res_400k = ui_server._compress_payload({
+        "mode": "semantic", "text": text, "arm": "b2", "vector_source": "synthetic",
+        "vector_max_words": 400_000,
+    })
+    assert res_400k["provider_metadata"]["vectors"]["max_words"] == 400_000
+    assert res_400k["vector_size"] == {"source_rows": 12, "retained_rows": 12, "dimensions": 4}
+    assert not any("400k" in w.lower() for w in res_400k["warnings"])
+
+
+def test_semantic_retention_affects_index_cache_and_config_hash(tmp_path):
+    source = ui_server.SYNTHETIC_VECTORS.read_text(encoding="utf-8")
+    path = tmp_path / "vectors.txt"
+    path.write_text(source, encoding="utf-8")
+    ui_server._vector_index.cache_clear()
+
+    res_10k = ui_server._compress_payload({
+        "mode": "semantic", "text": "Write a short answer.", "arm": "b1",
+        "vector_source": "local", "vector_path": str(path), "vector_max_words": 10_000,
+    })
+    res_50k = ui_server._compress_payload({
+        "mode": "semantic", "text": "Write a short answer.", "arm": "b1",
+        "vector_source": "local", "vector_path": str(path), "vector_max_words": 50_000,
+    })
+    # Different retentions must produce distinct config hashes
+    assert res_10k["config_hash"] != res_50k["config_hash"]
+    # And separate cache misses
+    assert ui_server._vector_index.cache_info().misses == 2
+
+
+def test_semantic_approval_and_validation_enforce_retention_setting(tmp_path, monkeypatch):
+    monkeypatch.setattr(ui_server, "_TEMPLATE_STORE", ui_server.TemplateStore(tmp_path / "templates"))
+    text = "They worked in order to finish the assignment."
+    comp_50k = ui_server._compress_payload({
+        "mode": "semantic", "text": text, "arm": "b1", "vector_source": "synthetic",
+        "vector_max_words": 50_000,
+    })
+    decisions = [
+        {"span": {"start": e["span"]["start"], "end": e["span"]["end"]},
+         "original": e["original"], "replacement": e["replacement"], "decision": "accepted"}
+        for e in comp_50k["edits"]
+    ]
+
+    # Approving with mismatching retention setting fails config_hash verification
+    with pytest.raises(ValueError, match="Configuration hash mismatch"):
+        ui_server._semantic_approve_payload({
+            "text": text, "arm": "b1", "vector_source": "synthetic",
+            "vector_max_words": 10_000,
+            "config_hash": comp_50k["config_hash"],
+            "vector_identity": comp_50k["vector_label"],
+            "decisions": decisions,
+        })
+
+    # Approving with same retention setting succeeds
+    approved = ui_server._semantic_approve_payload({
+        "text": text, "arm": "b1", "vector_source": "synthetic",
+        "vector_max_words": 50_000,
+        "config_hash": comp_50k["config_hash"],
+        "vector_identity": comp_50k["vector_label"],
+        "decisions": decisions,
+    })
+    template_id = approved["template"]["template_id"]
+
+    # Validating with same retention setting passes
+    valid_res = ui_server._semantic_validate_payload({
+        "text": text, "template_id": template_id,
+        "arm": "b1", "vector_source": "synthetic", "vector_max_words": 50_000,
+    })
+    assert valid_res["is_valid"] is True
+
+    # Validating with different retention setting (stale config) invalidates the template
+    invalid_res = ui_server._semantic_validate_payload({
+        "text": text, "template_id": template_id,
+        "arm": "b1", "vector_source": "synthetic", "vector_max_words": 10_000,
+    })
+    assert invalid_res["is_valid"] is False
+    assert invalid_res["status"] == "invalidated"
+    assert "Configuration hash mismatch" in invalid_res["invalidation_reason"]
+
+    # Validating with invalid retention value is rejected
+    with pytest.raises(ValueError, match="vector_max_words"):
+        ui_server._semantic_validate_payload({
+            "text": text, "template_id": template_id,
+            "arm": "b1", "vector_source": "synthetic", "vector_max_words": 25000,
+        })

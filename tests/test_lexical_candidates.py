@@ -73,6 +73,39 @@ def test_vector_cosine_neighbors_are_normalized_and_ties_are_lexical(synthetic_v
     assert synthetic_vectors.nearest("source", k=0) == ()
 
 
+def test_partitioned_neighbors_match_full_sort_with_ties_and_exclusions():
+    import numpy as np
+
+    rng = np.random.default_rng(1207)
+    matrix = rng.normal(size=(512, 8)).astype(np.float32)
+    matrix /= np.linalg.norm(matrix, axis=1, keepdims=True)
+    matrix[1:24] = matrix[0]  # Many equal scores at the top-k boundary.
+    words = ["source", *[f"word{i:03d}" for i in range(1, 512)]]
+    words[25] = "WORD024"  # Case-folded duplicate must occupy one slot.
+    index = VectorIndex(tuple(words), matrix, {"test": "full-sort-equivalence"})
+
+    for query in ("source", "word100"):
+        position = index._position(query)
+        scores = matrix @ matrix[position]
+        for k in (1, 4, 12, 24, 100, 600):
+            for excluded_words in ((), tuple(words[1:35]), ("WORD024", "word100")):
+                excluded = {word.casefold() for word in excluded_words} | {query.casefold()}
+                full_sort = sorted(
+                    ((word, max(-1.0, min(1.0, float(scores[i]))))
+                     for i, word in enumerate(words) if word.casefold() not in excluded),
+                    key=lambda item: (-item[1], item[0].casefold(), item[0]),
+                )
+                expected = []
+                used = set(excluded)
+                for word, score in full_sort:
+                    if word.casefold() not in used:
+                        used.add(word.casefold())
+                        expected.append((word, score))
+                    if len(expected) == k:
+                        break
+                assert index.nearest(query, k=k, exclude=excluded_words) == tuple(expected)
+
+
 def test_plain_glove_format_and_max_words(tmp_path):
     path = tmp_path / "synthetic-glove.txt"
     path.write_text("source 1 0\n\nother 0 3\nlast -1 0\n")

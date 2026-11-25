@@ -60,6 +60,7 @@ MAX_REQUEST_BYTES = MAX_INPUT_BYTES * 6 + 16_384
 MAX_VECTOR_BYTES = 2_000_000_000
 SYNTHETIC_VECTORS = REPO_ROOT / "data" / "lexical-demo" / "synthetic-vectors.txt"
 VECTOR_MAX_WORDS = 50_000
+VECTOR_RETENTION_OPTIONS = frozenset({10_000, 50_000, 400_000})
 _WORDNET_LOCK = Lock()
 _VECTOR_LOCK = Lock()
 _COUNTER_LOCK = Lock()
@@ -135,9 +136,9 @@ def _hybrid_backend():
         ) from exc
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=1)
 def _vector_index(path: str, modified_ns: int, size: int, max_words: int) -> VectorIndex:
-    """Cache a local index by resolved file identity and the retention limit."""
+    """Cache one index by file identity and size to bound workbench memory."""
     return VectorIndex.from_text(path, max_words=max_words)
 
 
@@ -178,6 +179,9 @@ def _build_semantic_provider_and_label(payload: dict) -> tuple[PilotProvider, st
         raise ValueError("vector_path must be a nonempty local file path.")
     if vector_path is not None and len(vector_path) > 4096:
         raise ValueError("vector_path is too long.")
+    vector_max_words = payload.get("vector_max_words", VECTOR_MAX_WORDS)
+    if type(vector_max_words) is not int or vector_max_words not in VECTOR_RETENTION_OPTIONS:
+        raise ValueError("vector_max_words must be 10000, 50000, or 400000.")
     encoding = _normalize_encoding(payload.get("encoding", "o200k_base"))
     max_candidates = payload.get("max_candidates", 8)
     if type(max_candidates) is not int or not 1 <= max_candidates <= 32:
@@ -214,7 +218,7 @@ def _build_semantic_provider_and_label(payload: dict) -> tuple[PilotProvider, st
             if stat.st_size > MAX_VECTOR_BYTES:
                 raise ValueError("Vector file exceeds the 2 GB local workbench limit.")
             with _VECTOR_LOCK:
-                vectors = _vector_index(str(path), stat.st_mtime_ns, stat.st_size, VECTOR_MAX_WORDS)
+                vectors = _vector_index(str(path), stat.st_mtime_ns, stat.st_size, vector_max_words)
         except (OSError, RuntimeError) as exc:
             raise ValueError("Could not read the local vector file.") from exc
         except ValueError as exc:
@@ -252,6 +256,12 @@ def _semantic_payload(payload: dict, text: str) -> dict:
     saved = result.tokens_before - result.tokens_after
     timings_ms = {**result.timings_ms, "engine_total": result.timings_ms["total"]}
     timings_ms["total"] = (time.perf_counter() - started) * 1000
+    vector_metadata = provider.metadata.get("vectors")
+    warnings = list(result.warnings)
+    if vector_metadata and vector_metadata.get("retained_rows", 0) >= 400_000:
+        warnings.append(
+            "Full 400k vector index loaded; cold loads can take several seconds and use hundreds of megabytes of memory."
+        )
     return {
         "mode": "semantic",
         "original": result.original,
@@ -264,13 +274,18 @@ def _semantic_payload(payload: dict, text: str) -> dict:
         "timings_ms": timings_ms,
         "edits": [dataclasses.asdict(edit) for edit in result.edits],
         "decisions": [dataclasses.asdict(decision) for decision in result.decisions],
-        "warnings": list(result.warnings),
+        "warnings": warnings,
         "review_status": result.review_status,
         "token_counter": result.token_counter,
         "config_hash": result.config_hash,
         "provider": result.provider,
         "provider_metadata": provider.metadata,
         "vector_label": vector_label,
+        "vector_size": None if vector_metadata is None else {
+            "source_rows": vector_metadata["source_rows"],
+            "retained_rows": vector_metadata["retained_rows"],
+            "dimensions": vector_metadata["dimensions"],
+        },
         "input_price_per_million": float(price),
         "cost_saved_usd": saved * price / 1_000_000,
         "workflow_disclaimer": WORKFLOW_DISCLAIMER,

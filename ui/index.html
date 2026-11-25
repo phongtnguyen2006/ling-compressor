@@ -116,6 +116,17 @@
                 <small class="setting-caption">Path to local GloVe or word2vec text file. No downloads.</small>
               </div>
 
+              <div id="semantic-vector-limit-group" class="setting-group" hidden>
+                <label for="semantic-vector-max-words">Words retained from local vectors</label>
+                <select id="semantic-vector-max-words">
+                  <option value="10000">10,000 words · small pilot (10k)</option>
+                  <option value="50000" selected>50,000 words · default (50k)</option>
+                  <option value="400000">400,000 words · full GloVe 6B vocabulary (400k)</option>
+                </select>
+                <small class="setting-caption">The source file is always checked in full. The result shows how many words were actually loaded.</small>
+                <p id="semantic-full-size-warning" class="setting-caption warning-text" hidden>Full-size 400k local indexes can take several seconds to load on cold start and use hundreds of megabytes of memory. Select this only after provisioning the vector file.</p>
+              </div>
+
               <div class="setting-group">
                 <label for="semantic-price">Input price (USD / 1M tokens)</label>
                 <input id="semantic-price" type="number" min="0" step="0.01" value="0.00" placeholder="0.00">
@@ -183,6 +194,7 @@
               <span id="review-status-badge" class="meta-badge badge-pending">Review: Pending</span>
               <span id="token-counter-badge" class="meta-badge"></span>
               <span id="vector-label-badge" class="meta-badge"></span>
+              <span id="vector-rows-badge" class="meta-badge" hidden></span>
               <span id="config-hash-badge" class="meta-badge"></span>
               <span id="cost-saved-badge" class="meta-badge badge-cost"></span>
             </div>

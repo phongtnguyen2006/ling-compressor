@@ -5,7 +5,7 @@ aliases:
   - Semantic Compression Pilot Usage
 type: usage-guide
 created: 2026-10-07
-updated: 2026-11-11
+updated: 2026-11-25
 status: experimental
 tags:
   - ling-compressor
@@ -27,6 +27,14 @@ lookup. The tokenizer cache and spaCy model still require the explicit setup
 below. The local workbench accepts vector files up to 2 GB and validates the
 entire file when first loaded; later runs reuse its cached index. No assets are
 downloaded by the workbench during a run.
+
+For a local vector file, choose **10k**, **50k** (default), or **400k** in the
+semantic controls. The result displays both source rows and rows retained; a
+small file does not become a 400k index merely by selecting the 400k cap. The
+full GloVe 6B 50d file has 400,000 rows. Cold loading it can take several
+seconds and use hundreds of megabytes of process memory. See the [frozen
+vocabulary sweep](full-vocabulary-sweep-2026-11-25.md) for measured coverage
+and limitations.
 
 ### Review and reuse an exact prompt template
 

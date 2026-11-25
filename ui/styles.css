@@ -395,6 +395,12 @@ button[disabled] { cursor: wait; opacity: 0.6; }
   border-color: #a4ddd4;
   font-weight: 650;
 }
+.meta-badge.badge-warning {
+  background: var(--cut-soft);
+  color: #8c2e1b;
+  border-color: #f7b2a3;
+  font-weight: 650;
+}
 .semantic-warnings-list {
   margin-top: 10px;
   display: flex;

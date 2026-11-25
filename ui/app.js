@@ -26,6 +26,9 @@ const elements = {
   syntheticVectorWarning: document.querySelector("#synthetic-vector-warning"),
   semanticVectorPathGroup: document.querySelector("#semantic-vector-path-group"),
   semanticVectorPath: document.querySelector("#semantic-vector-path"),
+  semanticVectorLimitGroup: document.querySelector("#semantic-vector-limit-group"),
+  semanticVectorMaxWords: document.querySelector("#semantic-vector-max-words"),
+  semanticFullSizeWarning: document.querySelector("#semantic-full-size-warning"),
   semanticPrice: document.querySelector("#semantic-price"),
   semanticMaxCandidates: document.querySelector("#semantic-max-candidates"),
   semanticSlotsGroup: document.querySelector("#semantic-slots-group"),
@@ -43,6 +46,7 @@ const elements = {
   reviewStatusBadge: document.querySelector("#review-status-badge"),
   tokenCounterBadge: document.querySelector("#token-counter-badge"),
   vectorLabelBadge: document.querySelector("#vector-label-badge"),
+  vectorRowsBadge: document.querySelector("#vector-rows-badge"),
   configHashBadge: document.querySelector("#config-hash-badge"),
   costSavedBadge: document.querySelector("#cost-saved-badge"),
   semanticWarningsList: document.querySelector("#semantic-warnings-list"),
@@ -697,6 +701,7 @@ function renderResult(data, requestPayload = null) {
       use_wordnet: requestPayload.use_wordnet,
       vector_source: requestPayload.vector_source,
       ...(requestPayload.vector_path ? { vector_path: requestPayload.vector_path } : {}),
+      vector_max_words: requestPayload.vector_max_words,
       min_embedding_similarity: requestPayload.min_embedding_similarity,
       adaptive_similarity: requestPayload.adaptive_similarity,
       max_candidates: requestPayload.max_candidates,
@@ -785,8 +790,41 @@ function renderResult(data, requestPayload = null) {
       if (elements.tokenCounterBadge) {
         elements.tokenCounterBadge.textContent = `Tokenizer: ${data.token_counter || "tiktoken"}`;
       }
+      const vm = (data.provider_metadata && data.provider_metadata.vectors) || null;
+      const isSynthetic = (data.vector_label && data.vector_label.toLowerCase().includes("synthetic")) || (data.provider_metadata && data.provider_metadata.vector_source === "synthetic");
+      const armUpper = (data.provider_metadata && data.provider_metadata.arm ? data.provider_metadata.arm : "b0").toUpperCase();
+
       if (elements.vectorLabelBadge) {
-        elements.vectorLabelBadge.textContent = `Vectors: ${data.vector_label || "none"}`;
+        if (armUpper === "B0") {
+          elements.vectorLabelBadge.textContent = "Vectors: none";
+          elements.vectorLabelBadge.title = "B0 uses curated rules only. Vectors not loaded.";
+        } else if (isSynthetic) {
+          elements.vectorLabelBadge.textContent = "Vectors: Bundled synthetic fixture (software fixture, not trained embeddings)";
+          elements.vectorLabelBadge.title = data.vector_label || "Bundled synthetic software fixture";
+        } else {
+          elements.vectorLabelBadge.textContent = `Vectors: ${data.vector_label || "custom local file"}`;
+          elements.vectorLabelBadge.title = data.vector_label || "";
+        }
+      }
+
+      if (elements.vectorRowsBadge) {
+        if (vm && armUpper !== "B0") {
+          const retained = vm.retained_rows.toLocaleString();
+          const source = vm.source_rows.toLocaleString();
+          const cap = vm.max_words ? (vm.max_words >= 1000 ? `${vm.max_words / 1000}k` : vm.max_words) : "none";
+          const fixtureTag = isSynthetic ? "Synthetic fixture · " : "";
+          elements.vectorRowsBadge.textContent = `${fixtureTag}${retained} of ${source} rows retained (cap: ${cap})`;
+          elements.vectorRowsBadge.hidden = false;
+          if (vm.retained_rows >= 400000) {
+            elements.vectorRowsBadge.classList.add("badge-warning");
+            elements.vectorRowsBadge.title = "400k full retention selected: cold load may incur higher initial latency and memory usage.";
+          } else {
+            elements.vectorRowsBadge.classList.remove("badge-warning");
+            elements.vectorRowsBadge.title = "";
+          }
+        } else {
+          elements.vectorRowsBadge.hidden = true;
+        }
       }
       if (elements.configHashBadge) {
         elements.configHashBadge.textContent = `Config: ${(data.config_hash || "unknown").slice(0, 12)}`;
@@ -899,6 +937,16 @@ function updateSemanticSettings() {
   if (elements.semanticVectorPathGroup) {
     elements.semanticVectorPathGroup.hidden = !showLocalPath;
   }
+  if (elements.semanticVectorLimitGroup) {
+    elements.semanticVectorLimitGroup.hidden = !showLocalPath;
+  }
+  const retentionElem = elements.semanticVectorMaxWords;
+  if (retentionElem) {
+    retentionElem.disabled = isB0;
+  }
+  if (elements.semanticFullSizeWarning) {
+    elements.semanticFullSizeWarning.hidden = !showLocalPath || (retentionElem && retentionElem.value !== "400000");
+  }
   if (elements.syntheticVectorWarning) {
     elements.syntheticVectorWarning.hidden = isB0 || vectorSource !== "synthetic";
   }
@@ -989,6 +1037,8 @@ async function compressText() {
       const useWordnet = elements.semanticWordnet ? elements.semanticWordnet.checked : false;
       const vectorSource = elements.semanticVectorSource ? elements.semanticVectorSource.value : "synthetic";
       const vectorPath = elements.semanticVectorPath ? elements.semanticVectorPath.value.trim() : "";
+      const retentionElem = elements.semanticVectorMaxWords;
+      const vectorMaxWords = retentionElem ? Number(retentionElem.value) : 50000;
       const encoding = elements.semanticEncoding ? elements.semanticEncoding.value : "o200k_base";
       const maxCandidates = parseInt(elements.semanticMaxCandidates.value, 10) || 8;
       const embeddingSlots = parseInt(elements.semanticEmbeddingSlots.value, 10) || 4;
@@ -1003,6 +1053,7 @@ async function compressText() {
         arm: arm,
         use_wordnet: useWordnet,
         vector_source: vectorSource,
+        vector_max_words: vectorMaxWords,
         encoding: encoding,
         max_candidates: maxCandidates,
         embedding_slots: embeddingSlots,
@@ -1077,6 +1128,10 @@ function renderExamples(examples) {
         }
         if (example.vector_source && elements.semanticVectorSource) {
           elements.semanticVectorSource.value = example.vector_source;
+        }
+        const retentionElem = elements.semanticVectorMaxWords;
+        if (retentionElem) {
+          retentionElem.value = String(example.vector_max_words || 50000);
         }
       }
 
@@ -1153,6 +1208,10 @@ if (elements.semanticArm) {
 if (elements.semanticVectorSource) {
   elements.semanticVectorSource.addEventListener("change", updateSemanticSettings);
 }
+const retentionElem = elements.semanticVectorMaxWords;
+if (retentionElem) {
+  retentionElem.addEventListener("change", updateSemanticSettings);
+}
 if (elements.semanticMaxCandidates) {
   elements.semanticMaxCandidates.addEventListener("input", updateSemanticSettings);
 }
@@ -1172,6 +1231,7 @@ if (elements.semanticMinSimilarity) {
 [
   elements.semanticEncoding,
   elements.semanticVectorPath,
+  elements.semanticVectorMaxWords,
   elements.semanticEmbeddingSlots,
   elements.semanticWordnet,
   elements.semanticAdaptiveSimilarity,

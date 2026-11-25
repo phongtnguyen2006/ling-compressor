@@ -56,3 +56,14 @@ Outcome: test real trained vectors against a frozen, representative workload and
 | T-15 | AG News paired classification proxy / Codex | Offline deterministic model compares original and edited held-out news articles with known labels; mark as task proxy, not LLM quality | T-11 | Complete; 21 focused tests, actual 20,000-train/200-held-out run, 7 ambiguous hashes excluded; original and B0/B1/B2 all 91% topic accuracy |
 | T-16 | Harden approval bypasses / Codex, finished by orchestrator after runner limit | Save only complete, authentic, reviewed server suggestions; validate saved templates against active config; block foreign Host; protect UI against stale review; adversarial tests | T-13, T-14 findings | Complete; 609 full-suite tests and live API/browser approval flow pass |
 | T-17 | Final hardened approval review / Antigravity | Read-only cross-vendor review of T-16 security and stale-state fixes; reproduce any remaining high-severity issue | T-16 | Complete; session 35f1a3c1cbe541f289ba84df945e52a8 found no high-severity bug; two minor findings fixed and retested in root session |
+
+## Full-vocabulary scaling (2026-11-25)
+
+Outcome: make the existing locally provisioned 400,000-word GloVe asset usable in the shared workbench, retain exact deterministic cosine results, and compare vocabulary sizes on frozen prompts before making a quality claim. No large vector asset is committed.
+
+| ID | Title / owner | Acceptance criterion | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| T-18 | Exact top-k retrieval / Orchestrator | Replace full Python sort with bounded exact selection; preserve lexical ties, exclusions, and returned neighbors; focused equivalence tests | — | Complete; parity test covers ties, exclusions, and case variants |
+| T-19 | Configurable workbench vocabulary / Orchestrator (reassigned after Antigravity CLI error) | Expose 10k/50k/400k local retention with honest loaded/source counts and warning for full-size cold load; preserve defaults and synthetic fixture labeling | — | Complete; API and focused UI tests pass |
+| T-20 | Size-sweep reporter / Codex | Compare frozen independent 10k/50k/400k runs using existing manifests; report coverage, savings, time and memory honestly; no overwrite | — | Complete; report generated from three validated frozen runs, session 5f9a64425a4046b4a2d0ce0dd872669b |
+| T-21 | Full GloVe pilot and review / Orchestrator | Run size sweep on the same frozen corpus, cross-vendor review code, verify tests and browser, document measured recommendation | T-18, T-19, T-20 | Complete; frozen size report, 628 tests, full-vocabulary browser demo, and independent Antigravity review (session a26546eca6ac480ba27923f1a3aa40fd) passed; automatic rewriting remains no-go |

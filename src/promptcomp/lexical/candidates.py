@@ -165,23 +165,40 @@ class VectorIndex:
         position = self._position(source)
         if position is None or k == 0:
             return ()
+        np = _numpy()
         excluded = {word.casefold() for word in exclude} | {source.casefold()}
-        scores = self._matrix @ self._matrix[position]
-        ranked = sorted(
-            ((word, max(-1.0, min(1.0, float(scores[i]))))
-             for i, word in enumerate(self.words) if word.casefold() not in excluded),
-            key=lambda item: (-item[1], item[0].casefold(), item[0]),
-        )
-        neighbors: list[tuple[str, float]] = []
-        for word, score in ranked:
-            normalized = word.casefold()
-            if normalized in excluded:
-                continue
-            excluded.add(normalized)
-            neighbors.append((word, score))
-            if len(neighbors) == k:
-                break
-        return tuple(neighbors)
+        scores = np.clip(self._matrix @ self._matrix[position], -1.0, 1.0)
+        total = len(self.words)
+        pool_size = min(total, max(32, 2 * k))
+        while True:
+            if pool_size == total:
+                candidate_indices = np.arange(total)
+            else:
+                # Partitioning selects the best scores in linear expected time.
+                # Include every tie at the boundary before lexical sorting so
+                # results remain identical to the former full-vocabulary sort.
+                top = np.argpartition(scores, total - pool_size)[total - pool_size:]
+                floor = scores[top].min()
+                candidate_indices = np.flatnonzero(scores >= floor)
+            ranked = sorted(
+                ((self.words[i], float(scores[i])) for i in candidate_indices
+                 if self.words[i].casefold() not in excluded),
+                key=lambda item: (-item[1], item[0].casefold(), item[0]),
+            )
+            neighbors: list[tuple[str, float]] = []
+            used = set(excluded)
+            for word, score in ranked:
+                normalized = word.casefold()
+                if normalized in used:
+                    continue
+                used.add(normalized)
+                neighbors.append((word, score))
+                if len(neighbors) == k:
+                    return tuple(neighbors)
+            if pool_size == total:
+                return tuple(neighbors)
+            # Heavy exclusions or case variants can exhaust a small pool.
+            pool_size = min(total, pool_size * 2)
 
 
 def _load_wordnet() -> tuple[Any, dict[str, Any]]:
