@@ -5,7 +5,7 @@ aliases:
   - Semantic Compression MOC
 type: index
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-11-25
 status: active
 tags:
   - ling-compressor
@@ -23,6 +23,7 @@ For a repeated authored prompt, the workbench now lets a person review each prop
 
 | Read | Purpose |
 | --- | --- |
+| [Current status](STATUS.md) · SEM-STATUS-001 | What is done, what awaits evidence, and future ideas |
 | [Feasibility report](feasibility.md) · SEM-RESEARCH-001 | Value, feasibility, prior work, risks, and semester timeline |
 | [Innovator–critic plan](debate-plan.md) · SEM-PLAN-001 | Agreed experiments and decision gates |
 | [Implementation record](implementation.md) · SEM-IMPL-001 | Requirements, decisions, milestones, and dated evidence |
