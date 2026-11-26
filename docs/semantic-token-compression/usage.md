@@ -358,7 +358,7 @@ This importer supports one annotation set per report. A representative study sti
 
 ## Limits and next evidence gate
 
-SEM-M1 demonstrates that the software can generate, constrain, count, and export substitution proposals. The synthetic smoke run cannot establish GloVe quality, incremental value over a complete WordNet baseline, task accuracy, semantic preservation, representative savings, or net API cost reduction. No Sentence-Transformer validator or downstream LLM evaluation runs in this prototype.
+SEM-M1 demonstrates that the software can generate, constrain, count, and export substitution proposals. The synthetic smoke run cannot establish GloVe quality, incremental value over a complete WordNet baseline, task accuracy, semantic preservation, representative savings, or net API cost reduction. A later [paired IFEval diagnostic](ifeval-paired-study-2026-11-25.md) runs a small local LLM against original instruction checks; it is a selected development sample, not representative held-out evidence. No Sentence-Transformer validator runs in this prototype.
 
 SEM-M2 still requires roughly 200 preselected representative prompts, stratified human review of roughly 200–400 candidate edits plus complete outputs, documented sampling and rubric, and a continue/stop decision. Those pilot sizes are planning estimates, not statistical reliability certification. Follow the [debate plan](debate-plan.md) before moving to contextual validation or automatic use.
 

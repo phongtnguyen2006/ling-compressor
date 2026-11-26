@@ -15,7 +15,7 @@ tags:
 
 # Semantic token compression
 
-The offline substitution pilot and review reporter are implemented. The [implementation record](implementation.md) tracks requirements, decisions, test results, and the next research gate. A [real-vector public-proxy pilot](real-vector-pilot-2026-11-11.md) and [10k/50k/400k vocabulary sweep](full-vocabulary-sweep-2026-11-25.md) are complete; a [two-reviewer study workflow](two-reviewer-study-2026-11-25.md) is ready, while human judgments and evaluation on the intended production workload are still pending. The earlier six authored smoke inputs and synthetic vectors verify the software only.
+The offline substitution pilot and review reporter are implemented. The [implementation record](implementation.md) tracks requirements, decisions, test results, and the next research gate. A [real-vector public-proxy pilot](real-vector-pilot-2026-11-11.md), [10k/50k/400k vocabulary sweep](full-vocabulary-sweep-2026-11-25.md), and [paired IFEval development diagnostic](ifeval-paired-study-2026-11-25.md) are complete; a [two-reviewer study workflow](two-reviewer-study-2026-11-25.md) is ready. Human judgments and evaluation on the intended production workload are still pending. The earlier six authored smoke inputs and synthetic vectors verify the software only.
 
 The interactive semantic demo is available from the shared Ling Compressor workbench (`python scripts/ui.py`). Select **Semantic substitution** alongside the existing tree-pruning and guarded-model paths. The earlier standalone Streamlit prototype was retired when the interfaces were consolidated.
 
@@ -30,6 +30,7 @@ For a repeated authored prompt, the workbench now lets a person review each prop
 | [Pilot usage](usage.md) · SEM-USAGE-001 | Setup, CLI/API, review rubric, and reproduction |
 | [Project board and mentor timeline](project-board.md) | Branch-specific delivery tickets, verification gates, and three check-ins |
 | [Real-vector pilot](real-vector-pilot-2026-11-11.md) | Dolly and AG News token results, failure inspection, and automatic-use decision |
+| [Paired IFEval diagnostic](ifeval-paired-study-2026-11-25.md) | Original-instruction scoring against unchanged and compressed prompts using a small local model |
 | [Production gates](production-gates.md) | Provisional promotion thresholds and exact-template review boundary |
 
 ## Evidence

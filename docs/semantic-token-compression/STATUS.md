@@ -27,6 +27,7 @@ tags:
 | Visual workbench | Done | Semantic substitution appears in the shared Ling Compressor UI with edit details, token counts, and local vector controls. |
 | Reviewed exact templates | Done for local use | A person can accept or reject each selected edit, save an approved template, export its audit, and invalidate it when source or configuration changes. |
 | Two-reviewer quality study | Ready for human work | A blinded 400k packet and local review screen support independent judgments; the paired reporter requires both reviewers before counting accepted savings. No human judgments have been collected. |
+| IFEval paired model diagnostic | Done for a small development sample | Original constraints were scored with the official evaluator on five complete local-model prompt sets; the selected sample is not a production-quality estimate. |
 | Public-data opportunity study | Partly done | Frozen Dolly and AG News proxy pilots and a paired report exist. Human fidelity review and an intended production workload are still missing. |
 | Automatic production rewriting | No-go for tested setup | B2 had very small incremental savings and spot-inspected meaning changes. Promotion criteria have not been met. |
 
@@ -39,6 +40,8 @@ tags:
 - Compared 10k, 50k, and 400k source-order GloVe retention on the same 400 Dolly prompts. Full-vocabulary B2 proposed **61 of 34,599 input tokens (0.176%)** saved, **36 more** than B0, with **33 of 400** prompts changed. These proposals remain unreviewed and some change meaning. See the [full-vocabulary sweep](full-vocabulary-sweep-2026-11-25.md).
 - Prepared a [two-reviewer study](two-reviewer-study-2026-11-25.md) from the full 400k pilot: 41 unique changed outputs plus 20 unchanged controls in each blinded packet, a visual review screen, and a paired report. The blank-file smoke report records **0/41** jointly complete changed prompts and zero reviewed savings.
 - Ran an AG News topic-classification proxy: original and B0/B1/B2 versions each scored **91%** on 200 held-out articles. This measures topic classification only.
+- Froze 541 official IFEval prompts and original constraints (127 development, 414 held-out). A 400k GloVe B2 pilot proposed **60/24,653 tokens (0.243%)** saved, versus **28** for B0. In a hand-selected five-prompt local Qwen diagnostic, B2 saved **3/488 complete model-input tokens** and every arm passed **2/5** strict original-instruction checks. One capped prompt set was excluded. See the [paired IFEval study](ifeval-paired-study-2026-11-25.md); this does not establish held-out or production-model quality.
+- The IFEval code passed an independent Antigravity review after fixes for deterministic language scoring, generation-arm subsets, baseline identity, frozen provenance, and truncation reporting. The full suite passed **694 tests**; the official scorer reproduced the five-prompt diagnostic.
 - Completed independent code review and a live 400k browser demo. With the two-reviewer workflow added, the current full test suite passed **654 tests**. The review screen's JSONL export was validated against the frozen pilot.
 
 ## In progress / awaiting evidence
@@ -49,7 +52,7 @@ These are open research and product decisions; no agent or mentor activity is cl
 | --- | --- |
 | Review complete prompts and proposed edits | Two independent human reviewers judge changed prompts; disagreements and harmful flags are resolved. The full 400k pilot currently has **0 of 41** unique changed complete prompts judged by both reviewers. Candidate edit judgments remain separate. |
 | Test the intended workload | Obtain a consented sample of repeated prompt templates, freeze development and held-out sets, and measure token savings and edit quality on those sets. Public datasets are proxies. |
-| Measure downstream LLM outcomes | Define a task with gold outcomes, pin the model and tokenizer, then compare unchanged and approved text on paired held-out inputs. |
+| Measure downstream LLM outcomes | The local IFEval workflow is feasible. Next pin the intended model and tokenizer, sample a representative held-out task set, use adequate response limits, and compare unchanged and approved text with paired accuracy statistics. |
 | Establish net value and runtime | Measure actual reuse counts, provider prices, review effort, caching, validation latency, failures, and recovery costs. The current token-price illustration is gross savings only. |
 | Complete mentor check-ins | Review the selection, quality rubric, prototype findings, and release decision with the mentor. None of the three planned check-ins is recorded as complete. |
 
@@ -62,6 +65,6 @@ These are open research and product decisions; no agent or mentor activity is cl
 
 ## Plan position
 
-The Week 1–2 baseline and Week 4–5 engine are implemented. Week 6–7 syntax checks exist, while human review is open. Week 9–10 dashboard and public proxy evaluation are implemented in part; downstream LLM testing remains open. Week 3, 8, and 11 mentor check-ins have not been recorded. The [project board](project-board.md) tracks completed engineering tickets; the [production gates](production-gates.md) define the remaining promotion evidence.
+The Week 1–2 baseline and Week 4–5 engine are implemented. Week 6–7 syntax checks exist, while human review is open. Week 9–10 dashboard and public proxy evaluation include a small paired IFEval model diagnostic; representative held-out downstream testing remains open. Week 3, 8, and 11 mentor check-ins have not been recorded. The [project board](project-board.md) tracks completed engineering tickets; the [production gates](production-gates.md) define the remaining promotion evidence.
 
 [Project index](README.md) · [Pilot results and decision](real-vector-pilot-2026-11-11.md) · [Usage guide](usage.md)

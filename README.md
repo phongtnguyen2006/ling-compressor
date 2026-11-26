@@ -294,8 +294,10 @@ To generate a reproducible pilot and review its results, follow the
 [pilot usage guide](docs/semantic-token-compression/usage.md) and the
 [project board and mentor timeline](docs/semantic-token-compression/project-board.md).
 The benchmark reporter reads a frozen pilot run and can optionally compute a
-local sentence embedding similarity proxy. Human review and downstream accuracy
-remain separate measurements.
+local sentence embedding similarity proxy. A [paired IFEval diagnostic](docs/semantic-token-compression/ifeval-paired-study-2026-11-25.md)
+now scores local-model responses against the original instruction constraints
+and records complete model-input tokens. Human review and representative
+production-model accuracy remain separate measurements.
 
 ## Evaluation and tests
 

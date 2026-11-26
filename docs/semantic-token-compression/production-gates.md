@@ -15,9 +15,9 @@ The earlier AG News run was exploratory and is not a deployment workload.
   A production decision ultimately needs a consented sample of the intended
   application templates and its actual tokenizer/provider prices.
 - Pretrained vector source: Gensim's PDDL-licensed mirror of Stanford GloVe
-  Wiki+Gigaword 6B, 50 dimensions, 400,000 source entries; exact-cosine pilot
-  retains the first 10,000 source-order entries. This tests a pruned vocabulary,
-  not the full GloVe model or all embedding methods.
+  Wiki+Gigaword 6B, 50 dimensions, 400,000 source entries. Frozen Dolly pilots
+  compared 10k, 50k, and full 400k source-order retention. The paired IFEval
+  diagnostic used all 400k entries; none of these runs test all embedding methods.
 
 ## Promotion criteria for automatic rewriting
 
@@ -59,7 +59,10 @@ token estimates a net saving.
 
 ## External work still required
 
-Mentor check-ins, independent human annotations, a pinned LLM evaluation with
-gold task outcomes, production workload sampling, and actual provider billing
-are not produced by the automated pilot. The project board tracks them as open
-evidence gates; no software test may mark them complete.
+Mentor check-ins, independent human annotations, a representative held-out
+evaluation on the intended LLM with gold task outcomes, production workload
+sampling, and actual provider billing remain open. The small local-model
+[IFEval diagnostic](ifeval-paired-study-2026-11-25.md) exercises the paired
+evaluation pipeline but does not satisfy the production quality gate. The
+project board tracks these as open evidence gates; no software test may mark
+them complete.
