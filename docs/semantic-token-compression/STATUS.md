@@ -26,6 +26,7 @@ tags:
 | Substitution engine | Done | B0 curated/WordNet, B1 vector ranking, and B2 vector discovery run with POS, protected-text, and full-prompt token checks. |
 | Visual workbench | Done | Semantic substitution appears in the shared Ling Compressor UI with edit details, token counts, and local vector controls. |
 | Reviewed exact templates | Done for local use | A person can accept or reject each selected edit, save an approved template, export its audit, and invalidate it when source or configuration changes. |
+| Two-reviewer quality study | Ready for human work | A blinded 400k packet and local review screen support independent judgments; the paired reporter requires both reviewers before counting accepted savings. No human judgments have been collected. |
 | Public-data opportunity study | Partly done | Frozen Dolly and AG News proxy pilots and a paired report exist. Human fidelity review and an intended production workload are still missing. |
 | Automatic production rewriting | No-go for tested setup | B2 had very small incremental savings and spot-inspected meaning changes. Promotion criteria have not been met. |
 
@@ -36,8 +37,9 @@ tags:
 - Added a local review workflow for fixed authored templates. Its approval API checks decisions against server-selected edits and validates saved templates against the live configuration.
 - Ran frozen pilots with a real GloVe 50-dimensional asset on 400 Dolly prompts and 400 AG News articles. The original 10k Dolly run proposed **27 of 34,599 input tokens (0.078%)** saved, only **2 more** than B0. Across AG News, B2 proposed **15 of 20,423 input tokens (0.073%)** saved.
 - Compared 10k, 50k, and 400k source-order GloVe retention on the same 400 Dolly prompts. Full-vocabulary B2 proposed **61 of 34,599 input tokens (0.176%)** saved, **36 more** than B0, with **33 of 400** prompts changed. These proposals remain unreviewed and some change meaning. See the [full-vocabulary sweep](full-vocabulary-sweep-2026-11-25.md).
+- Prepared a [two-reviewer study](two-reviewer-study-2026-11-25.md) from the full 400k pilot: 41 unique changed outputs plus 20 unchanged controls in each blinded packet, a visual review screen, and a paired report. The blank-file smoke report records **0/41** jointly complete changed prompts and zero reviewed savings.
 - Ran an AG News topic-classification proxy: original and B0/B1/B2 versions each scored **91%** on 200 held-out articles. This measures topic classification only.
-- Completed independent code review and a live 400k browser demo. The current full test suite passed **628 tests**.
+- Completed independent code review and a live 400k browser demo. With the two-reviewer workflow added, the current full test suite passed **654 tests**. The review screen's JSONL export was validated against the frozen pilot.
 
 ## In progress / awaiting evidence
 
@@ -45,7 +47,7 @@ These are open research and product decisions; no agent or mentor activity is cl
 
 | Next item | Completion evidence |
 | --- | --- |
-| Review complete prompts and proposed edits | Two independent human reviewers judge changed prompts; disagreements are resolved and harmful-change rates are reported. The frozen Dolly pilot currently has **0 of 420** complete-prompt review records filled. |
+| Review complete prompts and proposed edits | Two independent human reviewers judge changed prompts; disagreements and harmful flags are resolved. The full 400k pilot currently has **0 of 41** unique changed complete prompts judged by both reviewers. Candidate edit judgments remain separate. |
 | Test the intended workload | Obtain a consented sample of repeated prompt templates, freeze development and held-out sets, and measure token savings and edit quality on those sets. Public datasets are proxies. |
 | Measure downstream LLM outcomes | Define a task with gold outcomes, pin the model and tokenizer, then compare unchanged and approved text on paired held-out inputs. |
 | Establish net value and runtime | Measure actual reuse counts, provider prices, review effort, caching, validation latency, failures, and recovery costs. The current token-price illustration is gross savings only. |

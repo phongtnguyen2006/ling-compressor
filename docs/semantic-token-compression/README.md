@@ -15,7 +15,7 @@ tags:
 
 # Semantic token compression
 
-The offline substitution pilot and review reporter are implemented. The [implementation record](implementation.md) tracks requirements, decisions, test results, and the next research gate. A [real-vector public-proxy pilot](real-vector-pilot-2026-11-11.md) and [10k/50k/400k vocabulary sweep](full-vocabulary-sweep-2026-11-25.md) are complete; human review and evaluation on the intended production workload are still pending. The earlier six authored smoke inputs and synthetic vectors verify the software only.
+The offline substitution pilot and review reporter are implemented. The [implementation record](implementation.md) tracks requirements, decisions, test results, and the next research gate. A [real-vector public-proxy pilot](real-vector-pilot-2026-11-11.md) and [10k/50k/400k vocabulary sweep](full-vocabulary-sweep-2026-11-25.md) are complete; a [two-reviewer study workflow](two-reviewer-study-2026-11-25.md) is ready, while human judgments and evaluation on the intended production workload are still pending. The earlier six authored smoke inputs and synthetic vectors verify the software only.
 
 The interactive semantic demo is available from the shared Ling Compressor workbench (`python scripts/ui.py`). Select **Semantic substitution** alongside the existing tree-pruning and guarded-model paths. The earlier standalone Streamlit prototype was retired when the interfaces were consolidated.
 

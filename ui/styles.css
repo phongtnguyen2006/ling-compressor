@@ -95,6 +95,7 @@ main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
 .view-tab:hover { color: var(--ink); }
 .view-tab[aria-selected="true"] { color: var(--ink); }
 .view-tab[aria-selected="true"]::after { background: var(--measure); }
+.study-link { color: var(--ink); font-size: 0.88rem; font-weight: 650; text-decoration: underline; text-underline-offset: 4px; }
 
 .intro {
   min-height: 390px;

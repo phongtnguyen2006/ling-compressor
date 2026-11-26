@@ -36,6 +36,12 @@ seconds and use hundreds of megabytes of process memory. See the [frozen
 vocabulary sweep](full-vocabulary-sweep-2026-11-25.md) for measured coverage
 and limitations.
 
+For a blinded complete-prompt study, create two independent JSONL packets and
+review them at `http://localhost:8000/review.html`. The [two-reviewer guide](two-reviewer-study-2026-11-25.md)
+shows the packet, visual entry, and paired report commands. The current 400k
+Dolly packet has 41 changed outputs and 20 controls per reviewer. Human
+judgments have not been collected yet.
+
 ### Review and reuse an exact prompt template
 
 The semantic workbench presents proposed substitutions as **pending**. For a

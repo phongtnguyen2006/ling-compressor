@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt review · Ling Compressor</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/review.css">
+  <script src="/review.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="/" aria-label="Ling Compressor workbench"><span class="wordmark-glyph" aria-hidden="true">⌫</span><span>Ling Compressor</span></a>
+    <a class="study-link" href="/">Back to workbench</a>
+    <p>Local · blinded review</p>
+  </header>
+  <main class="review-main">
+    <section class="review-intro">
+      <h1>Read the whole prompt.</h1>
+      <p>Judge whether the proposed wording preserves meaning, reads naturally, and avoids a harmful change. Algorithm names and token savings stay hidden during review.</p>
+    </section>
+    <section class="review-setup" aria-labelledby="setup-title">
+      <div><h2 id="setup-title">Open your review packet</h2><p>Choose only your assigned JSONL file. Your work stays in this browser until you export it.</p></div>
+      <label>Reviewer name <input id="reviewer-name" type="text" autocomplete="name" placeholder="Your reviewer ID"></label>
+      <label class="file-picker">Choose packet <input id="packet-file" type="file" accept=".jsonl,application/x-ndjson,application/json"></label>
+    </section>
+    <p id="review-error" class="review-error" role="alert" hidden></p>
+    <section id="review-workspace" hidden aria-label="Prompt review workspace">
+      <div class="review-progress"><div><h2 id="review-position">Prompt 1</h2><p id="review-counts"></p></div><div class="review-nav"><button id="previous-prompt" type="button">Previous</button><button id="next-prompt" type="button">Next</button></div></div>
+      <div class="prompt-pair">
+        <article class="prompt-card original"><h3>Original prompt</h3><pre id="original-prompt"></pre></article>
+        <article class="prompt-card proposed"><h3>Proposed prompt</h3><pre id="proposed-prompt"></pre></article>
+      </div>
+      <form id="judgment-form" class="judgment-form">
+        <fieldset data-field="meaning_preserved"><legend>Is the meaning preserved?</legend><label><input type="radio" name="meaning_preserved" value="true"> Yes</label><label><input type="radio" name="meaning_preserved" value="false"> No</label><label><input type="radio" name="meaning_preserved" value="null"> Unsure</label></fieldset>
+        <fieldset data-field="grammatical"><legend>Is the proposed prompt grammatical?</legend><label><input type="radio" name="grammatical" value="true"> Yes</label><label><input type="radio" name="grammatical" value="false"> No</label><label><input type="radio" name="grammatical" value="null"> Unsure</label></fieldset>
+        <fieldset data-field="harmful_change"><legend>Could the change harm the task?</legend><label><input type="radio" name="harmful_change" value="true"> Yes</label><label><input type="radio" name="harmful_change" value="false"> No</label><label><input type="radio" name="harmful_change" value="null"> Unsure</label></fieldset>
+        <label class="notes-label">Notes <textarea id="review-notes" rows="3" placeholder="Why did you make this judgment?"></textarea></label>
+      </form>
+      <div class="review-export"><p>Unanswered or unsure prompts remain pending in the quality report. Export your file before closing this tab.</p><button id="export-review" type="button">Export my review JSONL</button></div>
+    </section>
+  </main>
+</body>
+</html>
