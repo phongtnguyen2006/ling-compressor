@@ -53,6 +53,8 @@ The library skips inputs shorter than 500 tokens by default. The workbench and t
 
 ## Development and evaluation
 
+The [tree-pruning revision study](docs/tree-pruning/output-directives.md) measures the effect of preserving explicit output instructions.
+
 The [414-prompt held-out study](docs/semantic-token-compression/held-out-workflow-study.md) compares tree pruning and semantic substitution against the original instructions.
 
 ```bash

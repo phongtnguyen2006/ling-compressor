@@ -7,11 +7,6 @@ from promptcomp.lexical import PilotProvider, VectorIndex, suggest
 from promptcomp.lexical.tokenization import local_counter
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Tree deletion drops the required quotation format in IFEval prompt 163",
-)
 def test_tree_preserves_double_quote_instruction():
     prompt = (
         "Create a 4 day itinerary for a trip to Verona, Italy. Wrap your entire "
