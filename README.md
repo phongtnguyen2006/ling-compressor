@@ -2,6 +2,8 @@
 
 The workbench opens with grammatical tree pruning. Optional phrase shortening starts switched off.
 
+See the [414-prompt pruning comparison](docs/tree-pruning/output-directives.md) for measured savings and instruction-following results.
+
 After setup, run `python scripts/ui.py` and open <http://localhost:8000>.
 
 | Development branch | Workflow |
