@@ -28,7 +28,7 @@ tags:
 | Combined tree and semantic path | Implemented | The opt-in path runs tree pruning, then semantic proposals on its output; stage counts and audits are shown separately. Final text needs review. |
 | Reviewed exact templates | Done for local use | A person can accept or reject each selected edit, save an approved template, export its audit, and invalidate it when source or configuration changes. |
 | Two-reviewer quality study | Ready for human work | A blinded 400k packet and local review screen support independent judgments; the paired reporter requires both reviewers before counting accepted savings. No human judgments have been collected. |
-| IFEval paired model diagnostic | Done for a small development sample | Original constraints were scored with the official evaluator on five complete local-model prompt sets; the selected sample is not a production-quality estimate. |
+| Paired IFEval model evaluation | Completed on all 414 frozen held-out prompts | Local Qwen passed 102 originals, 90 tree-pruned prompts, and 100 semantic prompts under strict scoring. [Paired study and per-prompt records](held-out-workflow-study.md) |
 | Public-data opportunity study | Partly done | Frozen Dolly and AG News proxy pilots and a paired report exist. Human fidelity review and an intended production workload are still missing. |
 | Automatic production rewriting | No-go for tested setup | B2 had very small incremental savings and spot-inspected meaning changes. Promotion criteria have not been met. |
 
@@ -67,6 +67,6 @@ These are open research and product decisions; no agent or mentor activity is cl
 
 ## Plan position
 
-The Week 1–2 baseline and Week 4–5 engine are implemented. Week 6–7 syntax checks exist, while human review is open. Week 9–10 dashboard and public proxy evaluation include a small paired IFEval model diagnostic; representative held-out downstream testing remains open. Week 3, 8, and 11 mentor check-ins have not been recorded. The [project board](project-board.md) tracks completed engineering tickets; the [production gates](production-gates.md) define the remaining promotion evidence.
+The Week 1–2 baseline and Week 4–5 engine are implemented. Week 6–7 syntax checks exist, while human review is open. Week 9–10 dashboard and public proxy evaluation include a 414-prompt paired IFEval study on local Qwen; representative held-out downstream testing remains open. Week 3, 8, and 11 mentor check-ins have not been recorded. The [project board](project-board.md) tracks completed engineering tickets; the [production gates](production-gates.md) define the remaining promotion evidence.
 
 [Project index](README.md) · [Pilot results and decision](real-vector-pilot-2026-11-11.md) · [Usage guide](usage.md)

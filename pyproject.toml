@@ -17,8 +17,8 @@ dependencies = [
 anthropic = ["anthropic>=0.40"]
 llmlingua = ["llmlingua>=0.2", "torch>=2"]
 lexical = ["numpy>=1.26", "nltk>=3.8.1"]
-semantic-eval = ["sentence-transformers>=3.0"]
-dev = ["pytest>=8", "hypothesis>=6"]
+semantic-eval = ["sentence-transformers>=3.0", "scipy>=1.11"]
+dev = ["pytest>=8", "hypothesis>=6", "scipy>=1.11"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
