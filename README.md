@@ -1,4 +1,16 @@
-# Ling Compressor
+# Ling Compressor — Tree pruning + semantic embedding
+
+The workbench opens with the two-stage pipeline. It prunes first and then proposes shorter substitutions. The individual modes are available for comparison.
+
+After setup, run `python scripts/ui.py` and open <http://localhost:8000>.
+
+| Development branch | Workflow |
+| --- | --- |
+| `workflow/tree-pruning` | Tree pruning experiments |
+| `workflow/semantic-embedding` | Standalone semantic substitution experiments |
+| `workflow/tree-and-semantic` | Integration and paired comparisons |
+
+Switch workflows with `git switch <branch>`.
 
 Ling Compressor shortens English prompts and shows what changed. Its local workbench displays the original text, the proposed output, token counts, and the decisions behind each edit.
 

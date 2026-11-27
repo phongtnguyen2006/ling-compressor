@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="A local visual workbench for the Ling Compressor.">
-    <title>Ling Compressor Workbench</title>
+    <title>Tree pruning + semantic embedding · Ling Compressor</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -62,7 +62,7 @@
           <fieldset class="mode-picker">
             <legend>Compression path</legend>
             <label class="mode-option">
-              <input type="radio" name="mode" value="conservative" checked>
+              <input type="radio" name="mode" value="conservative">
               <span><strong>Tree pruning</strong><small>Deterministic cuts with a full audit trail</small></span>
             </label>
             <label class="mode-option">
@@ -74,7 +74,7 @@
               <span><strong>Semantic substitution</strong><small>Offline lexical suggestions with local vectors and audit</small></span>
             </label>
             <label class="mode-option">
-              <input type="radio" name="mode" value="tree_semantic">
+              <input type="radio" name="mode" value="tree_semantic" checked>
               <span><strong>Tree + semantic</strong><small>Prune subtrees first, then propose unreviewed lexical edits</small></span>
             </label>
           </fieldset>
@@ -90,9 +90,9 @@
               <div class="setting-group">
                 <label for="semantic-arm">Experiment arm</label>
                 <select id="semantic-arm">
-                  <option value="b0" selected>B0 · Curated rules / WordNet</option>
+                  <option value="b0">B0 · Curated rules / WordNet</option>
                   <option value="b1">B1 · Baseline pool ranked by vectors</option>
-                  <option value="b2">B2 · Baseline plus vector neighbors</option>
+                  <option value="b2" selected>B2 · Baseline plus vector neighbors</option>
                 </select>
                 <small id="semantic-arm-caption" class="setting-caption">B0 uses curated rules with optional WordNet. Vectors are not required.</small>
               </div>
