@@ -299,6 +299,11 @@ now scores local-model responses against the original instruction constraints
 and records complete model-input tokens. Human review and representative
 production-model accuracy remain separate measurements.
 
+The opt-in **Tree + semantic** workbench mode applies audited tree pruning,
+then lexical proposals to the pruned text. It displays both stages and their
+token savings; the combined output remains unreviewed. See the [combined mode
+guide](docs/semantic-token-compression/usage.md#combined-tree-pruning-and-semantic-proposals).
+
 ## Evaluation and tests
 
 Run the complete suite:

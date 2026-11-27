@@ -5,7 +5,7 @@ aliases:
   - Semantic Compression Pilot Usage
 type: usage-guide
 created: 2026-10-07
-updated: 2026-11-25
+updated: 2026-11-26
 status: experimental
 tags:
   - ling-compressor
@@ -35,6 +35,30 @@ full GloVe 6B 50d file has 400,000 rows. Cold loading it can take several
 seconds and use hundreds of megabytes of process memory. See the [frozen
 vocabulary sweep](full-vocabulary-sweep-2026-11-25.md) for measured coverage
 and limitations.
+
+### Combined tree pruning and semantic proposals
+
+Select **Tree pruning + semantic** in the shared workbench, set the tree target
+ratio and the lexical candidate arm, then compress. This opt-in mode runs tree
+pruning first with its built-in phrase substitution disabled. It then runs the
+lexical engine on the pruned text using the same `o200k_base` tokenizer. The
+result shows original, pruned, and proposed final text; token counts for all
+three; the tree deletion/protection audit; and lexical selections and
+rejections. B2 can use a locally supplied trained vector file. The bundled
+synthetic vectors demonstrate wiring only.
+
+The combined output is **unreviewed**. Tree deletions and lexical replacements
+can both affect intent. The exact-template approval and persistence workflow
+below applies to semantic-only suggestions, not to this combined path. Judge
+the complete combined text and its task outcome before reuse. A 20-prompt
+held-out IFEval diagnostic (the first 20 frozen held-out records in source
+order) with the full GloVe B2 index, WordNet, eight candidates/four vector
+slots, and a 0.9 tree target
+went from 843 original to 749 tree tokens, then to 747 proposed combined
+tokens. Tree pruning fell back to the original on two prompts where a cut
+overlapped frozen text. The two additional tokens saved came from changes to
+two prompts. This small convenience sample is not a population estimate, and
+no response-quality or human-fidelity result accompanies it.
 
 For a blinded complete-prompt study, create two independent JSONL packets and
 review them at `http://localhost:8000/review.html`. The [two-reviewer guide](two-reviewer-study-2026-11-25.md)

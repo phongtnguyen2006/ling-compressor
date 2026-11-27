@@ -53,6 +53,9 @@ from promptcomp.lexical.approval import (  # noqa: E402
     validate_and_apply,
 )
 from promptcomp.lexical.tokenization import local_counter  # noqa: E402
+from promptcomp.lexical.protection import additional_defined_terms, frozen_ranges, overlaps  # noqa: E402
+from promptcomp.protect import extract_defined_terms, load_defined_terms  # noqa: E402
+from promptcomp.segment import segment  # noqa: E402
 from promptcomp.tokens import CachedCounter  # noqa: E402
 
 MAX_INPUT_BYTES = 1_000_000
@@ -67,7 +70,7 @@ _COUNTER_LOCK = Lock()
 _TEMPLATE_STORE = TemplateStore(REPO_ROOT / ".cache" / "approved_templates")
 
 
-def _example_catalog() -> list[dict[str, str]]:
+def _example_catalog() -> list[dict[str, object]]:
     labels = {
         "memo1": "Expense policy memo",
         "notice_snip": "Formal notice",
@@ -94,6 +97,15 @@ def _example_catalog() -> list[dict[str, str]]:
         }
     )
     examples.extend([
+        {
+            "id": "tree_semantic_stages",
+            "name": "Tree pruning + semantic proposal",
+            "text": "The committee approved the budget in order to begin quickly.",
+            "preview": "Inspect separate tree and lexical savings, with both stages unreviewed.",
+            "mode": "tree_semantic",
+            "target_ratio": 0.9,
+            "arm": "b0",
+        },
         {
             "id": "semantic_phrase",
             "name": "Authored prompt template · B0",
@@ -237,20 +249,26 @@ def _build_semantic_provider_and_label(payload: dict) -> tuple[PilotProvider, st
     return provider, vector_label, threshold, adaptive, encoding
 
 
-def _semantic_payload(payload: dict, text: str) -> dict:
-    started = time.perf_counter()
+def _semantic_price(payload: dict) -> float:
     price = payload.get("input_price_per_million", 0.0)
     if (isinstance(price, bool) or not isinstance(price, (int, float))
             or not math.isfinite(price) or price < 0):
         raise ValueError("input_price_per_million must be a finite nonnegative number.")
+    return float(price)
 
-    provider, vector_label, threshold, adaptive, encoding = _build_semantic_provider_and_label(payload)
+
+def _semantic_payload(payload: dict, text: str, *, counter=None, provider_settings=None) -> dict:
+    started = time.perf_counter()
+    price = _semantic_price(payload)
+    provider, vector_label, threshold, adaptive, encoding = (
+        provider_settings if provider_settings is not None else _build_semantic_provider_and_label(payload)
+    )
     use_wordnet = payload.get("use_wordnet", False)
 
     # NLTK's lazy WordNet loader is unsafe across concurrent requests.
     with (_WORDNET_LOCK if use_wordnet else nullcontext()):
         result = suggest(
-            text, provider, counter=_semantic_counter(encoding),
+            text, provider, counter=counter if counter is not None else _semantic_counter(encoding),
             min_embedding_similarity=threshold, adaptive_similarity=adaptive,
         )
     saved = result.tokens_before - result.tokens_after
@@ -286,7 +304,7 @@ def _semantic_payload(payload: dict, text: str) -> dict:
             "retained_rows": vector_metadata["retained_rows"],
             "dimensions": vector_metadata["dimensions"],
         },
-        "input_price_per_million": float(price),
+        "input_price_per_million": price,
         "cost_saved_usd": saved * price / 1_000_000,
         "workflow_disclaimer": WORKFLOW_DISCLAIMER,
         "occurrences": [
@@ -307,6 +325,118 @@ def _semantic_payload(payload: dict, text: str) -> dict:
     }
 
 
+def _tree_semantic_payload(payload: dict, text: str, target_ratio: float) -> dict:
+    """Prune first, then propose lexical edits on the pruned text."""
+    started = time.perf_counter()
+    if _normalize_encoding(payload.get("encoding", "o200k_base")) != "o200k_base":
+        raise ValueError("tree_semantic requires o200k_base encoding for both stages.")
+    price = _semantic_price(payload)
+    provider_settings = _build_semantic_provider_and_label(payload)
+
+    counter = _semantic_counter("o200k_base")
+    tokens_before = counter.count(text)
+    tree_result = compress(
+        text,
+        target_ratio=target_ratio,
+        min_tokens=0,
+        substitute=False,
+        counter=counter,
+    )
+
+    yaml_terms, _ = load_defined_terms()
+    defined_terms = frozenset(set(yaml_terms) | extract_defined_terms(text) | additional_defined_terms(text))
+    frozen = frozen_ranges(text, segment(text), (), defined_terms)
+    tree_warnings = []
+    if any(
+        overlaps(deletion.span, item.span)
+        for deletion in tree_result.deleted for item in frozen
+    ):
+        tree_warnings.append("Tree pruning overlapped a lexical frozen range and was discarded in full.")
+    proposed_tree_tokens = counter.count(tree_result.compressed)
+    if proposed_tree_tokens > tokens_before:
+        tree_warnings.append("Tree pruning increased measured tokens and was discarded in full.")
+    if not tree_result.compressed.strip() or proposed_tree_tokens == 0:
+        tree_warnings.append("Tree pruning produced empty text and was discarded in full.")
+    if tree_warnings:
+        tree_result = dataclasses.replace(
+            tree_result, compressed=text, tokens_after=tokens_before, ratio=1.0, deleted=(),
+            warnings=(*tree_result.warnings, *tree_warnings),
+        )
+    pruned = tree_result.compressed
+    tokens_after_tree = counter.count(pruned)
+    tree_result = dataclasses.replace(
+        tree_result, tokens_before=tokens_before, tokens_after=tokens_after_tree,
+        ratio=tokens_after_tree / tokens_before,
+    )
+    semantic = _semantic_payload(payload, pruned, counter=counter, provider_settings=provider_settings)
+    proposed = semantic["compressed"]
+    proposed_tokens = counter.count(proposed)
+
+    # A changed proposal must save measured tokens. Reconcile its audit when
+    # the combined mode retains the pruned text instead.
+    if proposed_tokens >= tokens_after_tree and (proposed != pruned or semantic["edits"]):
+        semantic["compressed"] = pruned
+        semantic["edits"] = []
+        semantic["occurrences"] = []
+        semantic["decisions"] = [
+            {**decision, "decision": "rejected", "reason": "combined_stage_no_savings"}
+            if decision["decision"] == "selected" else decision
+            for decision in semantic["decisions"]
+        ]
+        semantic["warnings"].append(
+            "Semantic proposal did not save tokens and was discarded; the pruned text is the final unreviewed output."
+        )
+
+    tokens_after = counter.count(semantic["compressed"])
+    semantic_saved = tokens_after_tree - tokens_after
+    semantic.update({
+        "original": pruned,
+        "tokens_before": tokens_after_tree,
+        "tokens_after": tokens_after,
+        "saved_tokens": semantic_saved,
+        "saved_percent": round(100 * semantic_saved / tokens_after_tree, 1),
+        "ratio": tokens_after / tokens_after_tree,
+        "cost_saved_usd": semantic_saved * price / 1_000_000,
+        "token_counter": counter.name,
+        "review_status": "unreviewed",
+        "workflow_disclaimer": (
+            "This combined tree and semantic proposal is unreviewed. "
+            "Semantic template approval endpoints do not accept combined output. "
+            "Inspect the full tree and semantic audits before use."
+        ),
+    })
+    tree_saved = tokens_before - tokens_after_tree
+    saved = tokens_before - tokens_after
+    return {
+        "mode": "tree_semantic",
+        "original": text,
+        "pruned": pruned,
+        "compressed": semantic["compressed"],
+        "tokens_before": tokens_before,
+        "tokens_after_tree": tokens_after_tree,
+        "tokens_after": tokens_after,
+        "tree_saved_tokens": tree_saved,
+        "semantic_saved_tokens": semantic_saved,
+        "saved_tokens": saved,
+        "ratio": tokens_after / tokens_before,
+        "saved_percent": round(100 * saved / tokens_before, 1),
+        "timings_ms": {
+            "tree": tree_result.timings_ms["total"],
+            "semantic": semantic["timings_ms"]["total"],
+            "total": (time.perf_counter() - started) * 1000,
+        },
+        "target_ratio": target_ratio,
+        "token_counter": counter.name,
+        "review_status": "unreviewed",
+        "warnings": [
+            "Tree pruning and semantic edits are unreviewed; inspect the tree audit and semantic proposals before use.",
+            *tree_result.warnings,
+        ],
+        "tree": dataclasses.asdict(tree_result),
+        "semantic": semantic,
+    }
+
+
 def _compress_payload(payload: dict) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("Request body must be a JSON object.")
@@ -317,8 +447,13 @@ def _compress_payload(payload: dict) -> dict:
         raise ValueError("Input is too large. Keep it under 1 MB.")
 
     mode = payload.get("mode", "conservative")
+    if (mode == "semantic" or mode == "tree_semantic") and "protected_spans" in payload:
+        raise ValueError("protected_spans is not supported by /api/compress semantic modes.")
     if mode == "semantic":
         return _semantic_payload(payload, text)
+
+    if mode == "tree_semantic" and isinstance(payload.get("target_ratio", 0.6), bool):
+        raise ValueError("Target ratio must be a number, not a boolean.")
 
     try:
         target_ratio = float(payload.get("target_ratio", 0.6))
@@ -327,8 +462,11 @@ def _compress_payload(payload: dict) -> dict:
     if not 0.1 <= target_ratio <= 1.0:
         raise ValueError("Target ratio must be between 0.1 and 1.0.")
 
-    if not isinstance(mode, str) or mode not in {"conservative", "hybrid_sentinel"}:
-        raise ValueError("Choose tree pruning, guarded hybrid, or semantic substitution.")
+    if not isinstance(mode, str) or mode not in {"conservative", "hybrid_sentinel", "tree_semantic"}:
+        raise ValueError("Choose tree pruning, guarded hybrid, semantic substitution, or tree_semantic.")
+
+    if mode == "tree_semantic":
+        return _tree_semantic_payload(payload, text, target_ratio)
 
     if mode == "hybrid_sentinel":
         from eval.hybrid import SentinelHybridCompressor
@@ -395,9 +533,15 @@ def _allowed_semantic_host(host_header: str | None, server_port: int) -> bool:
         return False
 
 
+def _reject_combined_approval_fields(payload: dict) -> None:
+    if payload.get("mode") == "tree_semantic" or "target_ratio" in payload:
+        raise ValueError("Combined tree_semantic output cannot use semantic approval endpoints or target_ratio.")
+
+
 def _semantic_preview_payload(payload: dict) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("Request body must be a JSON object.")
+    _reject_combined_approval_fields(payload)
     text = payload.get("text")
     if not isinstance(text, str) or not text.strip():
         raise ValueError("Enter some text to preview.")
@@ -425,6 +569,7 @@ def _semantic_preview_payload(payload: dict) -> dict:
 def _semantic_approve_payload(payload: dict) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("Request body must be a JSON object.")
+    _reject_combined_approval_fields(payload)
     text = payload.get("text")
     if not isinstance(text, str) or not text.strip():
         raise ValueError("Enter some text to approve.")
@@ -537,6 +682,7 @@ def _semantic_approve_payload(payload: dict) -> dict:
 def _semantic_validate_payload(payload: dict) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("Request body must be a JSON object.")
+    _reject_combined_approval_fields(payload)
     text = payload.get("text")
     if not isinstance(text, str):
         raise ValueError("text must be a string.")

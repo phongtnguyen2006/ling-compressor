@@ -2,7 +2,7 @@
 id: SEM-STATUS-001
 title: "Semantic Token Compression Project Status"
 type: project-status
-updated: 2026-11-25
+updated: 2026-11-27
 status: active
 tags:
   - ling-compressor
@@ -12,7 +12,7 @@ tags:
 
 # Semantic token compression: project status
 
-**Last checked:** 2026-11-25
+**Last checked:** 2026-11-27
 
 **Branch:** `feature/semantic-embedding-compression` (pushed; separate from `main`)
 
@@ -25,6 +25,7 @@ tags:
 | Tokenization and vector lookup | Done | Local GloVe text vectors, exact cosine top-k lookup, 10k/50k/400k retained-row selection, WordNet candidates, and `tiktoken` counting are implemented. |
 | Substitution engine | Done | B0 curated/WordNet, B1 vector ranking, and B2 vector discovery run with POS, protected-text, and full-prompt token checks. |
 | Visual workbench | Done | Semantic substitution appears in the shared Ling Compressor UI with edit details, token counts, and local vector controls. |
+| Combined tree and semantic path | Implemented | The opt-in path runs tree pruning, then semantic proposals on its output; stage counts and audits are shown separately. Final text needs review. |
 | Reviewed exact templates | Done for local use | A person can accept or reject each selected edit, save an approved template, export its audit, and invalidate it when source or configuration changes. |
 | Two-reviewer quality study | Ready for human work | A blinded 400k packet and local review screen support independent judgments; the paired reporter requires both reviewers before counting accepted savings. No human judgments have been collected. |
 | IFEval paired model diagnostic | Done for a small development sample | Original constraints were scored with the official evaluator on five complete local-model prompt sets; the selected sample is not a production-quality estimate. |
@@ -41,6 +42,7 @@ tags:
 - Prepared a [two-reviewer study](two-reviewer-study-2026-11-25.md) from the full 400k pilot: 41 unique changed outputs plus 20 unchanged controls in each blinded packet, a visual review screen, and a paired report. The blank-file smoke report records **0/41** jointly complete changed prompts and zero reviewed savings.
 - Ran an AG News topic-classification proxy: original and B0/B1/B2 versions each scored **91%** on 200 held-out articles. This measures topic classification only.
 - Froze 541 official IFEval prompts and original constraints (127 development, 414 held-out). A 400k GloVe B2 pilot proposed **60/24,653 tokens (0.243%)** saved, versus **28** for B0. In a hand-selected five-prompt local Qwen diagnostic, B2 saved **3/488 complete model-input tokens** and every arm passed **2/5** strict original-instruction checks. One capped prompt set was excluded. See the [paired IFEval study](ifeval-paired-study-2026-11-25.md); this does not establish held-out or production-model quality.
+- Added an opt-in tree pruning plus semantic proposal path to the shared UI. On the first 20 frozen held-out IFEval prompts, a 0.9 tree target reduced **843 to 749** tokens, and the full 400k GloVe B2 stage proposed **2 additional tokens** saved, reaching **747**. Two tree outputs fell back when cuts overlapped frozen content. This is a small token diagnostic with no quality judgment; see the [combined mode guide](usage.md#combined-tree-pruning-and-semantic-proposals).
 - The IFEval code passed an independent Antigravity review after fixes for deterministic language scoring, generation-arm subsets, baseline identity, frozen provenance, and truncation reporting. The full suite passed **694 tests**; the official scorer reproduced the five-prompt diagnostic.
 - Completed independent code review and a live 400k browser demo. With the two-reviewer workflow added, the current full test suite passed **654 tests**. The review screen's JSONL export was validated against the frozen pilot.
 

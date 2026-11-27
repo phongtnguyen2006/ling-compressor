@@ -1,4 +1,20 @@
-const state = { examples: [] };
+const state = { examples: [], resultMode: null };
+
+const TREE_SEMANTIC_SAMPLE = {
+  id: "tree_semantic_combined",
+  name: "Combined tree + semantic · B2",
+  text:
+    "The committee, after a long and unusually detailed discussion, approved the plan. " +
+    "These projects necessitate careful planning. " +
+    "No expenditure may exceed $5,000 without written approval.",
+  preview:
+    "Two-stage opt-in demo: prune optional modifiers while protecting the $5,000 cap, then propose unreviewed lexical edits on the pruned text",
+  mode: "tree_semantic",
+  target_ratio: 0.85,
+  arm: "b2",
+  vector_source: "synthetic",
+  vector_max_words: 50000,
+};
 
 const elements = {
   form: document.querySelector("#compress-form"),
@@ -7,6 +23,7 @@ const elements = {
   ratio: document.querySelector("#ratio"),
   ratioOutput: document.querySelector("#ratio-output"),
   substitute: document.querySelector("#substitute"),
+  substituteControl: document.querySelector("#substitute-control"),
   modes: [...document.querySelectorAll('input[name="mode"]')],
   modeNote: document.querySelector("#mode-note"),
   button: document.querySelector("#compress-button"),
@@ -19,9 +36,12 @@ const elements = {
 
   // Semantic settings elements
   semanticSettings: document.querySelector("#semantic-settings"),
+  semanticSettingsLegend: document.querySelector("#semantic-settings-legend"),
+  semanticWarningCopy: document.querySelector("#semantic-warning-copy"),
   semanticArm: document.querySelector("#semantic-arm"),
   semanticArmCaption: document.querySelector("#semantic-arm-caption"),
   semanticEncoding: document.querySelector("#semantic-encoding"),
+  semanticEncodingCaption: document.querySelector("#semantic-encoding-caption"),
   semanticVectorSource: document.querySelector("#semantic-vector-source"),
   syntheticVectorWarning: document.querySelector("#synthetic-vector-warning"),
   semanticVectorPathGroup: document.querySelector("#semantic-vector-path-group"),
@@ -40,8 +60,16 @@ const elements = {
   semanticMinSimilarityOutput: document.querySelector("#semantic-min-similarity-output"),
   semanticAdaptiveSimilarity: document.querySelector("#semantic-adaptive-similarity"),
 
-  // Semantic result elements
+  // Semantic & combined result elements
   costSavedSummary: document.querySelector("#cost-saved-summary"),
+  unreviewedCombinedBanner: document.querySelector("#unreviewed-combined-banner"),
+  stageBreakdown: document.querySelector("#stage-breakdown"),
+  stageBeforeTokens: document.querySelector("#stage-before-tokens"),
+  stageBeforeDetail: document.querySelector("#stage-before-detail"),
+  stageTreeTokens: document.querySelector("#stage-tree-tokens"),
+  stageTreeDetail: document.querySelector("#stage-tree-detail"),
+  stageFinalTokens: document.querySelector("#stage-final-tokens"),
+  stageFinalDetail: document.querySelector("#stage-final-detail"),
   semanticBanner: document.querySelector("#semantic-banner"),
   reviewStatusBadge: document.querySelector("#review-status-badge"),
   tokenCounterBadge: document.querySelector("#token-counter-badge"),
@@ -50,9 +78,18 @@ const elements = {
   configHashBadge: document.querySelector("#config-hash-badge"),
   costSavedBadge: document.querySelector("#cost-saved-badge"),
   semanticWarningsList: document.querySelector("#semantic-warnings-list"),
+  textCompare: document.querySelector("#text-compare"),
+  prunedColumn: document.querySelector("#pruned-column"),
+  prunedTitle: document.querySelector("#pruned-title"),
+  prunedCount: document.querySelector("#pruned-count"),
+  prunedText: document.querySelector("#pruned-text"),
+  auditStrip: document.querySelector("#audit-strip"),
   deletionLabel: document.querySelector("#deletion-label"),
   protectedLabel: document.querySelector("#protected-label"),
   substitutionLabel: document.querySelector("#substitution-label"),
+  rejectedAuditCell: document.querySelector("#rejected-audit-cell"),
+  rejectedCount: document.querySelector("#rejected-count"),
+  rejectedLabel: document.querySelector("#rejected-label"),
   auditSummaryLabel: document.querySelector("#audit-summary-label"),
 
   // Semantic reviewed template approval workflow elements
@@ -114,11 +151,29 @@ function escapeHtml(value) {
   })[char]);
 }
 
+function spanBounds(span) {
+  if (!span) return { start: 0, end: 0 };
+  const start = span.start != null ? span.start : span[0];
+  const end = span.end != null ? span.end : span[1];
+  return { start: start ?? 0, end: end ?? 0 };
+}
+
 function annotateOriginal(text, deleted, vetoed) {
+  const offsets = codepointOffsets(text);
+  const maxIndex = offsets.length - 1;
+  const clampOffset = cp => offsets[Math.min(maxIndex, Math.max(0, cp))];
+  const positionedDeleted = (deleted || []).map(item => {
+    const raw = spanBounds(item.span);
+    return { ...item, start: clampOffset(raw.start), end: clampOffset(raw.end) };
+  });
+  const positionedVetoed = (vetoed || []).map(item => {
+    const raw = spanBounds(item.span);
+    return { ...item, start: clampOffset(raw.start), end: clampOffset(raw.end) };
+  });
   const boundaries = new Set([0, text.length]);
-  [...deleted, ...vetoed].forEach(item => {
-    boundaries.add(item.span.start);
-    boundaries.add(item.span.end);
+  [...positionedDeleted, ...positionedVetoed].forEach(item => {
+    boundaries.add(item.start);
+    boundaries.add(item.end);
   });
   const points = [...boundaries].sort((a, b) => a - b);
   let html = "";
@@ -126,12 +181,12 @@ function annotateOriginal(text, deleted, vetoed) {
     const start = points[index];
     const end = points[index + 1];
     const chunk = escapeHtml(text.slice(start, end));
-    const cut = deleted.find(item => item.span.start <= start && item.span.end >= end);
-    const protectedSpan = vetoed.find(item => item.span.start <= start && item.span.end >= end);
+    const cut = positionedDeleted.find(item => item.start <= start && item.end >= end);
+    const protectedSpan = positionedVetoed.find(item => item.start <= start && item.end >= end);
     if (cut) {
-      html += `<mark class="annotation-cut" title="Removed: ${escapeHtml(cut.reason)}">${chunk}</mark>`;
+      html += `<mark class="annotation-cut" title="Removed: ${escapeHtml(cut.reason || cut.deprel || "")}">${chunk}</mark>`;
     } else if (protectedSpan) {
-      html += `<mark class="annotation-protected" title="Protected: ${escapeHtml(protectedSpan.protect_class)}">${chunk}</mark>`;
+      html += `<mark class="annotation-protected" title="Protected: ${escapeHtml(protectedSpan.protect_class || "")}">${chunk}</mark>`;
     } else {
       html += chunk;
     }
@@ -237,11 +292,113 @@ function annotateSemantic(original, compressed, edits, decisions) {
   return { origHtml, compHtml };
 }
 
+function annotateCombinedStages(prunedText, finalProposalText, edits, decisions, treeSubstitutions = {}) {
+  const offsets = codepointOffsets(prunedText);
+  const maxIndex = offsets.length - 1;
+  const clampOffset = cp => offsets[Math.min(maxIndex, Math.max(0, cp))];
+  const semanticBackedOff = finalProposalText === prunedText;
+
+  const positionedEdits = (edits || []).map(edit => {
+    const raw = spanBounds(edit.span);
+    return {
+      ...edit,
+      start: clampOffset(raw.start),
+      end: clampOffset(raw.end),
+    };
+  }).sort((a, b) => a.start - b.start);
+
+  const protectedDecisions = (decisions || []).filter(
+    d => d.decision === "rejected" && d.reason && d.reason.startsWith("protected")
+  ).map(decision => {
+    const raw = spanBounds(decision.span);
+    return {
+      ...decision,
+      start: clampOffset(raw.start),
+      end: clampOffset(raw.end),
+    };
+  });
+
+  const prunedBoundaries = new Set([0, prunedText.length]);
+  if (!semanticBackedOff) {
+    positionedEdits.forEach(e => {
+      prunedBoundaries.add(e.start);
+      prunedBoundaries.add(e.end);
+    });
+  }
+  protectedDecisions.forEach(d => {
+    prunedBoundaries.add(d.start);
+    prunedBoundaries.add(d.end);
+  });
+  const prunedPoints = [...prunedBoundaries].sort((a, b) => a - b);
+
+  let prunedHtml = "";
+  if (prunedPoints.length <= 2 && Object.keys(treeSubstitutions || {}).length > 0) {
+    prunedHtml = annotateCompressed(prunedText, treeSubstitutions);
+  } else {
+    for (let i = 0; i < prunedPoints.length - 1; i += 1) {
+      const start = prunedPoints[i];
+      const end = prunedPoints[i + 1];
+      const chunk = escapeHtml(prunedText.slice(start, end));
+      const edit = !semanticBackedOff ? positionedEdits.find(e => e.start <= start && e.end >= end) : null;
+      const prot = protectedDecisions.find(d => d.start <= start && d.end >= end);
+      if (edit) {
+        const simText = edit.similarity != null ? `, cos: ${edit.similarity.toFixed(3)}` : "";
+        const deltaText = edit.token_delta != null ? `, -${edit.token_delta} tok` : "";
+        prunedHtml += `<mark class="annotation-substitution annotation-substitution-pending" title="[STAGE 2 PROPOSAL · UNREVIEWED] '${escapeHtml(edit.original)}' → '${escapeHtml(edit.replacement)}' (${escapeHtml(edit.provenance || "")}${simText}${deltaText})">${chunk}</mark>`;
+      } else if (prot) {
+        prunedHtml += `<mark class="annotation-protected" title="Protected in semantic stage: ${escapeHtml(prot.reason)}">${chunk}</mark>`;
+      } else {
+        prunedHtml += chunk;
+      }
+    }
+  }
+
+  if (semanticBackedOff || !positionedEdits.length) {
+    return { prunedHtml, finalHtml: escapeHtml(finalProposalText) };
+  }
+
+  // Highlight proposed lexical replacements in finalProposalText, falling back cleanly if offsets diverge.
+  let finalHtml = "";
+  let prunedCursor = 0;
+  let finalCursor = 0;
+  for (const edit of positionedEdits) {
+    const prefixLen = edit.start - prunedCursor;
+    if (prefixLen < 0) {
+      return { prunedHtml, finalHtml: escapeHtml(finalProposalText) };
+    }
+    const expectedPrefix = prunedText.slice(prunedCursor, edit.start);
+    const actualPrefix = finalProposalText.slice(finalCursor, finalCursor + prefixLen);
+    const replacement = String(edit.replacement ?? "");
+    const actualRepl = finalProposalText.slice(finalCursor + prefixLen, finalCursor + prefixLen + replacement.length);
+    if (expectedPrefix !== actualPrefix || actualRepl !== replacement) {
+      return { prunedHtml, finalHtml: escapeHtml(finalProposalText) };
+    }
+    finalHtml += escapeHtml(actualPrefix);
+    finalCursor += prefixLen;
+    prunedCursor = edit.end;
+
+    const sim = edit.similarity != null ? `, cos: ${edit.similarity.toFixed(3)}` : "";
+    const delta = edit.token_delta != null ? `, -${edit.token_delta} tok` : "";
+    finalHtml += `<mark class="annotation-substitution annotation-substitution-pending" title="Unreviewed proposal: substituted for '${escapeHtml(edit.original)}' (${escapeHtml(edit.provenance || "")}${sim}${delta})">${escapeHtml(actualRepl)}</mark>`;
+    finalCursor += replacement.length;
+  }
+  finalHtml += escapeHtml(finalProposalText.slice(finalCursor));
+
+  return { prunedHtml, finalHtml };
+}
+
 function buildAudit(data) {
+  const deleted = data.deleted || [];
+  const vetoed = data.vetoed || [];
+  const substitutions = data.substitutions || {};
   const entries = [
-    ...data.deleted.map(item => ({ kind: "Removed", text: item.text, detail: `${item.deprel} · ${item.score.toFixed(3)}` })),
-    ...data.vetoed.map(item => ({ kind: "Protected", text: item.text, detail: item.protect_class })),
-    ...Object.entries(data.substitutions).map(([from, to]) => ({ kind: "Shortened", text: `${from} → ${to}`, detail: "reversible" })),
+    ...deleted.map(item => ({
+      kind: "Removed",
+      text: item.text,
+      detail: `${item.deprel || "subtree"}${typeof item.score === "number" ? ` · ${item.score.toFixed(3)}` : ""}${item.reason ? ` · ${item.reason}` : ""}`,
+    })),
+    ...vetoed.map(item => ({ kind: "Protected", text: item.text, detail: item.protect_class })),
+    ...Object.entries(substitutions).map(([from, to]) => ({ kind: "Shortened", text: `${from} → ${to}`, detail: "reversible" })),
   ];
   if (!entries.length) return '<p class="empty-audit">No edits were available at this setting.</p>';
   return entries.map(entry => `
@@ -252,25 +409,34 @@ function buildAudit(data) {
     </div>`).join("");
 }
 
-function buildSemanticAudit(data) {
+function buildSemanticAudit(data, options = {}) {
   const edits = data.edits || [];
   const decisions = data.decisions || [];
   const rejected = decisions.filter(d => d.decision !== "selected");
+  const selectedKind = options.unreviewedProposal ? "Proposed" : "Selected";
+  const selectedHeading = options.unreviewedProposal
+    ? `Proposed lexical edits (${edits.length} · unreviewed)`
+    : `Selected edits (${edits.length})`;
+  const spanLabelPrefix = options.prunedSpan ? "pruned span" : "span";
 
   if (!edits.length && !rejected.length) {
     return '<p class="empty-audit">No candidates were evaluated for this text.</p>';
   }
 
   let html = "";
+  if (options.backoffNotice) {
+    html += `<div class="empty-audit">${escapeHtml(options.backoffNotice)}</div>`;
+  }
 
   if (edits.length) {
-    html += `<div class="audit-section-header"><h4>Selected edits (${edits.length})</h4></div>`;
+    html += `<div class="audit-section-header"><h4>${escapeHtml(selectedHeading)}</h4></div>`;
     html += edits.map(edit => {
       const sim = edit.similarity != null ? `cos: ${edit.similarity.toFixed(3)}` : "no vector score";
       const delta = edit.token_delta != null ? `-${edit.token_delta} tok` : "";
+      const bounds = spanBounds(edit.span);
       return `
         <div class="audit-item audit-item-selected">
-          <span class="audit-kind audit-kind-selected">Selected</span>
+          <span class="audit-kind audit-kind-selected">${escapeHtml(selectedKind)}</span>
           <div class="audit-content">
             <div class="audit-terms">
               <code>${escapeHtml(edit.original)}</code>
@@ -286,7 +452,7 @@ function buildSemanticAudit(data) {
           </div>
           <div class="audit-meta">
             <small class="audit-detail">${escapeHtml(edit.provenance)} · ${sim} · ${delta}</small>
-            <small class="audit-span">span ${edit.span.start}:${edit.span.end}</small>
+            <small class="audit-span">${spanLabelPrefix} ${bounds.start}:${bounds.end}</small>
           </div>
         </div>`;
     }).join("");
@@ -297,6 +463,7 @@ function buildSemanticAudit(data) {
     html += rejected.map(item => {
       const sim = item.similarity != null ? `cos: ${item.similarity.toFixed(3)}` : "no vector score";
       const delta = item.token_delta != null ? `${item.token_delta > 0 ? '-' + item.token_delta : item.token_delta} tok` : "0 tok";
+      const bounds = spanBounds(item.span);
       return `
         <div class="audit-item audit-item-rejected">
           <span class="audit-kind audit-kind-rejected">Rejected</span>
@@ -310,13 +477,48 @@ function buildSemanticAudit(data) {
           </div>
           <div class="audit-meta">
             <small class="audit-detail">${escapeHtml(item.provenance)} · ${sim} · ${delta}</small>
-            <small class="audit-span">span ${item.span.start}:${item.span.end} · rank ${item.candidate_rank ?? 0}</small>
+            <small class="audit-span">${spanLabelPrefix} ${bounds.start}:${bounds.end} · rank ${item.candidate_rank ?? 0}</small>
           </div>
         </div>`;
     }).join("");
   }
 
   return html;
+}
+
+function buildCombinedAudit(treeData, semanticData, stageStats) {
+  const deletedCount = (treeData.deleted || []).length;
+  const vetoedCount = (treeData.vetoed || []).length;
+  const treeSubCount = Object.keys(treeData.substitutions || {}).length;
+  const editsCount = (semanticData.edits || []).length;
+  const rejectedCount = (semanticData.decisions || []).filter(d => d.decision !== "selected").length;
+  const backoffNotice =
+    stageStats.semanticBackedOff && editsCount > 0
+      ? "Full-text token recount found no net token savings from Stage 2 proposals; final output retains Stage 1 pruned text."
+      : "";
+
+  const treeHeader = `
+    <div class="audit-stage-divider">
+      <h4>Stage 1 · Tree deletion &amp; protection audit</h4>
+      <small>${deletedCount} cut${deletedCount === 1 ? "" : "s"} · ${vetoedCount} protected${treeSubCount ? ` · ${treeSubCount} shortened` : ""} · -${stageStats.treeSavedTokens} tok</small>
+    </div>`;
+
+  const semanticHeader = `
+    <div class="audit-stage-divider">
+      <h4>Stage 2 · Semantic edit &amp; rejection audit on pruned text (unreviewed)</h4>
+      <small>${editsCount} proposed · ${rejectedCount} rejected · -${stageStats.semanticSavedTokens} tok · template persistence disabled</small>
+    </div>`;
+
+  return (
+    treeHeader +
+    buildAudit(treeData) +
+    semanticHeader +
+    buildSemanticAudit(semanticData, {
+      unreviewedProposal: true,
+      prunedSpan: true,
+      backoffNotice,
+    })
+  );
 }
 
 function renderOccurrencesList() {
@@ -381,6 +583,55 @@ function renderOccurrencesList() {
 }
 
 let previewRequestId = 0;
+let compressRequestId = 0;
+let inFlightCompressId = 0;
+
+function captureWorkbenchSnapshot() {
+  return {
+    mode: selectedMode(),
+    source: elements.source ? elements.source.value : "",
+    ratio: elements.ratio ? String(elements.ratio.value) : "",
+    substitute: Boolean(elements.substitute && elements.substitute.checked),
+    arm: elements.semanticArm ? elements.semanticArm.value : "",
+    encoding: elements.semanticEncoding ? elements.semanticEncoding.value : "",
+    vectorSource: elements.semanticVectorSource ? elements.semanticVectorSource.value : "",
+    vectorPath: elements.semanticVectorPath ? elements.semanticVectorPath.value.trim() : "",
+    vectorMaxWords: elements.semanticVectorMaxWords ? String(elements.semanticVectorMaxWords.value) : "",
+    price: elements.semanticPrice ? String(elements.semanticPrice.value) : "",
+    maxCandidates: elements.semanticMaxCandidates ? String(elements.semanticMaxCandidates.value) : "",
+    embeddingSlots: elements.semanticEmbeddingSlots ? String(elements.semanticEmbeddingSlots.value) : "",
+    useWordnet: Boolean(elements.semanticWordnet && elements.semanticWordnet.checked),
+    similarityToggle: Boolean(elements.semanticSimilarityToggle && elements.semanticSimilarityToggle.checked),
+    minSimilarity: elements.semanticMinSimilarity ? String(elements.semanticMinSimilarity.value) : "",
+    adaptiveSimilarity: Boolean(elements.semanticAdaptiveSimilarity && elements.semanticAdaptiveSimilarity.checked),
+  };
+}
+
+function matchesWorkbenchSnapshot(snapshot) {
+  if (!snapshot) return false;
+  const current = captureWorkbenchSnapshot();
+  return Object.keys(snapshot).every(key => snapshot[key] === current[key]);
+}
+
+function invalidateInFlightCompression() {
+  compressRequestId += 1;
+  previewRequestId += 1;
+  if (inFlightCompressId !== 0) {
+    inFlightCompressId = 0;
+    if (elements.button) {
+      elements.button.disabled = false;
+      elements.button.textContent = "Compress text";
+    }
+  }
+}
+
+function isCurrentCompressionRequest(requestId, requestSnapshot) {
+  return (
+    requestId === compressRequestId &&
+    requestId === inFlightCompressId &&
+    matchesWorkbenchSnapshot(requestSnapshot)
+  );
+}
 
 function invalidateStaleReviewState(reason) {
   semanticReviewState.reviewVersion += 1;
@@ -399,7 +650,7 @@ function invalidateStaleReviewState(reason) {
 }
 
 async function updateApprovalPreview() {
-  if (!semanticReviewState.active || semanticReviewState.invalidated) return;
+  if (selectedMode() !== "semantic" || !semanticReviewState.active || semanticReviewState.invalidated) return;
   semanticReviewState.reviewVersion += 1;
 
   // Clear any existing saved template and audit on decision change
@@ -430,8 +681,15 @@ async function updateApprovalPreview() {
     });
     const data = await response.json();
 
-    // Prevent race conditions: discard superseded response
-    if (currentReqId !== previewRequestId) return;
+    // Prevent race conditions: discard superseded response or mode switch away from standalone semantic
+    if (
+      currentReqId !== previewRequestId ||
+      selectedMode() !== "semantic" ||
+      !semanticReviewState.active ||
+      semanticReviewState.invalidated
+    ) {
+      return;
+    }
 
     if (elements.source.value !== semanticReviewState.originalText) {
       invalidateStaleReviewState("Source text was edited after compression. Run compression again to review suggestions.");
@@ -534,7 +792,12 @@ async function updateApprovalPreview() {
     if (elements.exportTextButton) elements.exportTextButton.disabled = true;
     if (elements.exportAuditButton) elements.exportAuditButton.disabled = true;
   } catch (err) {
-    if (currentReqId === previewRequestId && elements.approvalBannerMessage) {
+    if (
+      currentReqId === previewRequestId &&
+      selectedMode() === "semantic" &&
+      semanticReviewState.active &&
+      elements.approvalBannerMessage
+    ) {
       elements.approvalBannerMessage.textContent = err.message;
       elements.approvalBannerMessage.className = "approval-banner-message error";
       elements.approvalBannerMessage.hidden = false;
@@ -543,7 +806,7 @@ async function updateApprovalPreview() {
 }
 
 async function persistApprovedTemplate() {
-  if (!semanticReviewState.active || semanticReviewState.invalidated) return;
+  if (selectedMode() !== "semantic" || !semanticReviewState.active || semanticReviewState.invalidated) return;
   const savingVersion = semanticReviewState.reviewVersion;
   if (elements.source.value !== semanticReviewState.originalText) {
     invalidateStaleReviewState("Source text was edited after compression. Run compression again before saving.");
@@ -572,8 +835,16 @@ async function persistApprovedTemplate() {
     if (!response.ok) {
       throw new Error(data.error || "Failed to persist approved template.");
     }
-    if (semanticReviewState.invalidated || savingVersion !== semanticReviewState.reviewVersion || elements.source.value !== semanticReviewState.originalText) {
-      invalidateStaleReviewState("Source text or semantic settings changed while saving. Re-run compression before exporting.");
+    if (
+      selectedMode() !== "semantic" ||
+      !semanticReviewState.active ||
+      semanticReviewState.invalidated ||
+      savingVersion !== semanticReviewState.reviewVersion ||
+      elements.source.value !== semanticReviewState.originalText
+    ) {
+      if (selectedMode() === "semantic" && semanticReviewState.active) {
+        invalidateStaleReviewState("Source text or semantic settings changed while saving. Re-run compression before exporting.");
+      }
       return;
     }
     semanticReviewState.savedTemplate = data.template;
@@ -596,7 +867,7 @@ async function persistApprovedTemplate() {
     if (elements.exportTextButton) elements.exportTextButton.disabled = false;
     if (elements.exportAuditButton) elements.exportAuditButton.disabled = false;
   } catch (err) {
-    if (elements.approvalBannerMessage) {
+    if (selectedMode() === "semantic" && semanticReviewState.active && elements.approvalBannerMessage) {
       elements.approvalBannerMessage.textContent = err.message;
       elements.approvalBannerMessage.className = "approval-banner-message error";
       elements.approvalBannerMessage.hidden = false;
@@ -605,7 +876,13 @@ async function persistApprovedTemplate() {
     elements.persistTemplateButton.textContent = "Save Approved Template";
     const hasPending = semanticReviewState.occurrences.some(o => o.decision === "pending");
     const hasAccepted = semanticReviewState.occurrences.some(o => o.decision === "accepted");
-    elements.persistTemplateButton.disabled = semanticReviewState.invalidated || hasPending || !hasAccepted || elements.source.value !== semanticReviewState.originalText;
+    elements.persistTemplateButton.disabled =
+      selectedMode() !== "semantic" ||
+      !semanticReviewState.active ||
+      semanticReviewState.invalidated ||
+      hasPending ||
+      !hasAccepted ||
+      elements.source.value !== semanticReviewState.originalText;
   }
 }
 
@@ -659,12 +936,165 @@ async function copyApprovedText() {
   }
 }
 
+function populateSemanticMetadataBanner(semanticData, options = {}) {
+  if (!elements.semanticBanner) return;
+  const isCombined = Boolean(options.isCombined);
+  const treeData = options.treeData || null;
+  const totalSavedTokens = options.totalSavedTokens ?? semanticData.saved_tokens ?? 0;
+
+  if (elements.reviewStatusBadge) {
+    if (isCombined) {
+      elements.reviewStatusBadge.textContent = "Review: UNREVIEWED (NO TEMPLATE PERSISTENCE)";
+      elements.reviewStatusBadge.className = "meta-badge badge-pending";
+    } else {
+      const status = semanticData.review_status || "pending";
+      elements.reviewStatusBadge.textContent = `Review: ${status}`;
+      elements.reviewStatusBadge.className = "meta-badge badge-pending";
+    }
+  }
+  if (elements.tokenCounterBadge) {
+    const counterLabel =
+      semanticData.token_counter || (treeData && treeData.token_counter) || "tiktoken";
+    elements.tokenCounterBadge.textContent = `Tokenizer: ${counterLabel}`;
+  }
+
+  const providerMeta = semanticData.provider_metadata || {};
+  const vm = providerMeta.vectors || semanticData.vector_size || null;
+  const vectorLabel = semanticData.vector_label || "none";
+  const isSynthetic =
+    vectorLabel.toLowerCase().includes("synthetic") ||
+    providerMeta.vector_source === "synthetic";
+  const armUpper = (providerMeta.arm ? providerMeta.arm : "b0").toUpperCase();
+
+  if (elements.vectorLabelBadge) {
+    if (armUpper === "B0") {
+      elements.vectorLabelBadge.textContent = "Vectors: none";
+      elements.vectorLabelBadge.title = "B0 uses curated rules only. Vectors not loaded.";
+    } else if (isSynthetic) {
+      elements.vectorLabelBadge.textContent =
+        "Vectors: Bundled synthetic fixture (software fixture, not trained embeddings)";
+      elements.vectorLabelBadge.title = vectorLabel || "Bundled synthetic software fixture";
+    } else {
+      elements.vectorLabelBadge.textContent = `Vectors: ${vectorLabel || "custom local file"}`;
+      elements.vectorLabelBadge.title = vectorLabel || "";
+    }
+  }
+
+  if (elements.vectorRowsBadge) {
+    if (vm && armUpper !== "B0" && vm.retained_rows != null && vm.source_rows != null) {
+      const retained = vm.retained_rows.toLocaleString();
+      const source = vm.source_rows.toLocaleString();
+      const maxWords = providerMeta.vectors && providerMeta.vectors.max_words != null
+        ? providerMeta.vectors.max_words
+        : vm.max_words;
+      const cap = maxWords ? (maxWords >= 1000 ? `${maxWords / 1000}k` : maxWords) : "none";
+      const fixtureTag = isSynthetic ? "Synthetic fixture · " : "";
+      elements.vectorRowsBadge.textContent = `${fixtureTag}${retained} of ${source} rows retained (cap: ${cap})`;
+      elements.vectorRowsBadge.hidden = false;
+      if (vm.retained_rows >= 400000) {
+        elements.vectorRowsBadge.classList.add("badge-warning");
+        elements.vectorRowsBadge.title =
+          "400k full retention selected: cold load may incur higher initial latency and memory usage.";
+      } else {
+        elements.vectorRowsBadge.classList.remove("badge-warning");
+        elements.vectorRowsBadge.title = "";
+      }
+    } else {
+      elements.vectorRowsBadge.hidden = true;
+    }
+  }
+
+  if (elements.configHashBadge) {
+    if (isCombined && treeData) {
+      const treeHash = (treeData.config_hash || "unknown").slice(0, 8);
+      const semHash = (semanticData.config_hash || "unknown").slice(0, 8);
+      elements.configHashBadge.textContent = `Config: tree ${treeHash} · sem ${semHash}`;
+      elements.configHashBadge.title = `Tree config: ${treeData.config_hash || "unknown"} | Semantic config: ${semanticData.config_hash || "unknown"}`;
+    } else {
+      elements.configHashBadge.textContent = `Config: ${(semanticData.config_hash || "unknown").slice(0, 12)}`;
+      elements.configHashBadge.title = semanticData.config_hash || "Configuration hash unavailable";
+    }
+  }
+
+  if (elements.costSavedBadge) {
+    const price =
+      options.inputPricePerMillion != null
+        ? options.inputPricePerMillion
+        : semanticData.input_price_per_million != null
+        ? semanticData.input_price_per_million
+        : 0;
+    const costSaved = isCombined
+      ? (options.totalCostSavedUsd != null ? options.totalCostSavedUsd : (totalSavedTokens * price) / 1_000_000)
+      : (semanticData.cost_saved_usd || 0);
+    if (isCombined && !(price > 0)) {
+      elements.costSavedBadge.hidden = true;
+      elements.costSavedBadge.textContent = "";
+    } else {
+      elements.costSavedBadge.hidden = false;
+      elements.costSavedBadge.textContent = `Gross input est.: $${costSaved.toFixed(6)} (@ $${price.toFixed(2)}/1M · unreviewed proposal)`;
+    }
+  }
+
+  if (elements.semanticWarningsList) {
+    const rawWarnings = [
+      ...((treeData && treeData.warnings) || []),
+      ...(semanticData.warnings || []),
+      ...(options.extraWarnings || []),
+    ];
+    const warnings = [...new Set(rawWarnings.filter(Boolean))];
+    if (warnings.length > 0) {
+      elements.semanticWarningsList.innerHTML = warnings
+        .map(w => `<div class="warning-callout">${escapeHtml(w)}</div>`)
+        .join("");
+      elements.semanticWarningsList.hidden = false;
+    } else {
+      elements.semanticWarningsList.innerHTML = "";
+      elements.semanticWarningsList.hidden = true;
+    }
+  }
+}
+
 function renderResult(data, requestPayload = null) {
   // Ignore any preview response started for the preceding compression result.
   previewRequestId += 1;
+  const activeUiMode = selectedMode();
   const mode = data.mode;
+  state.resultMode = mode;
+  if (
+    (requestPayload && requestPayload.mode && requestPayload.mode !== activeUiMode) ||
+    (mode && mode !== activeUiMode)
+  ) {
+    if (activeUiMode !== "semantic") {
+      semanticReviewState.active = false;
+      if (elements.semanticApprovalWorkflow) {
+        elements.semanticApprovalWorkflow.hidden = true;
+      }
+      if (elements.persistTemplateButton) elements.persistTemplateButton.disabled = true;
+    }
+    return;
+  }
   const isHybrid = mode === "hybrid_sentinel";
   const isSemantic = mode === "semantic";
+  const isTreeSemantic = mode === "tree_semantic";
+
+  if (elements.unreviewedCombinedBanner) {
+    elements.unreviewedCombinedBanner.hidden = !isTreeSemantic;
+  }
+  if (elements.stageBreakdown) {
+    elements.stageBreakdown.hidden = !isTreeSemantic;
+  }
+  if (elements.prunedColumn) {
+    elements.prunedColumn.hidden = !isTreeSemantic;
+  }
+  if (elements.textCompare) {
+    elements.textCompare.classList.toggle("three-stage", isTreeSemantic);
+  }
+  if (elements.rejectedAuditCell) {
+    elements.rejectedAuditCell.hidden = !isTreeSemantic;
+  }
+  if (elements.auditStrip) {
+    elements.auditStrip.classList.toggle("four-stat", isTreeSemantic);
+  }
 
   if (isSemantic) {
     const armLabel = data.provider_metadata && data.provider_metadata.arm
@@ -750,6 +1180,148 @@ function renderResult(data, requestPayload = null) {
     if (elements.costSavedSummary) {
       elements.costSavedSummary.textContent = " · gross estimate only (review pending, default unchanged)";
     }
+  } else if (isTreeSemantic) {
+    // Approved-template persistence is explicitly disabled in combined tree_semantic mode.
+    semanticReviewState.active = false;
+    semanticReviewState.savedTemplate = null;
+    semanticReviewState.savedAudit = null;
+    if (elements.semanticApprovalWorkflow) {
+      elements.semanticApprovalWorkflow.hidden = true;
+    }
+    if (elements.persistTemplateButton) elements.persistTemplateButton.disabled = true;
+    if (elements.copyApprovedButton) elements.copyApprovedButton.disabled = true;
+    if (elements.exportTextButton) elements.exportTextButton.disabled = true;
+    if (elements.exportAuditButton) elements.exportAuditButton.disabled = true;
+
+    const treeData = data.tree || {};
+    const semanticData = data.semantic || {};
+    const originalText = data.original != null ? data.original : (treeData.original || "");
+    const prunedText = data.pruned != null ? data.pruned : (treeData.compressed != null ? treeData.compressed : (semanticData.original || ""));
+    const finalText = data.compressed != null ? data.compressed : (semanticData.compressed != null ? semanticData.compressed : prunedText);
+
+    const tokensBefore = data.tokens_before ?? treeData.tokens_before ?? 0;
+    const tokensAfterTree = data.tokens_after_tree ?? treeData.tokens_after ?? semanticData.tokens_before ?? tokensBefore;
+    const tokensAfter = data.tokens_after ?? semanticData.tokens_after ?? tokensAfterTree;
+    const treeSavedTokens = data.tree_saved_tokens ?? (tokensBefore - tokensAfterTree);
+    const semanticSavedTokens = data.semantic_saved_tokens ?? (tokensAfterTree - tokensAfter);
+    const savedTokens = data.saved_tokens ?? (tokensBefore - tokensAfter);
+    const ratio = data.ratio != null ? data.ratio : (tokensBefore > 0 ? tokensAfter / tokensBefore : 1);
+    const savedPercent = data.saved_percent != null
+      ? data.saved_percent
+      : (tokensBefore > 0 ? Number(((savedTokens / tokensBefore) * 100).toFixed(1)) : 0);
+
+    const armLabel = (
+      (semanticData.provider_metadata && semanticData.provider_metadata.arm) ||
+      (requestPayload && requestPayload.arm) ||
+      "b0"
+    ).toUpperCase();
+    const counterLabel = semanticData.token_counter || treeData.token_counter || "tiktoken";
+    const targetRatioPct = Math.round(
+      ((data.target_ratio != null ? data.target_ratio : (requestPayload && requestPayload.target_ratio != null ? requestPayload.target_ratio : 0.6)) * 100)
+    );
+
+    document.querySelector("#result-mode").textContent =
+      `Combined tree pruning (${targetRatioPct}% target) + semantic substitution (${armLabel}) · ${counterLabel} · unreviewed proposal`;
+
+    document.querySelector("#tokens-after").textContent = tokensAfter;
+    document.querySelector("#tokens-saved").textContent = savedTokens;
+    document.querySelector("#ruler-fill").style.width = `${Math.min(100, Math.max(0, ratio * 100))}%`;
+
+    const inputPrice =
+      data.input_price_per_million != null
+        ? data.input_price_per_million
+        : requestPayload && requestPayload.input_price_per_million != null
+        ? requestPayload.input_price_per_million
+        : semanticData.input_price_per_million != null
+        ? semanticData.input_price_per_million
+        : 0;
+    const totalCostSavedUsd = (savedTokens * inputPrice) / 1_000_000;
+
+    if (elements.costSavedSummary) {
+      elements.costSavedSummary.textContent =
+        inputPrice > 0
+          ? ` · $${totalCostSavedUsd.toFixed(6)} gross est. (unreviewed proposal)`
+          : " · unreviewed combined proposal";
+    }
+
+    if (elements.stageBeforeTokens) elements.stageBeforeTokens.textContent = `${tokensBefore} tokens`;
+    if (elements.stageBeforeDetail) {
+      elements.stageBeforeDetail.textContent = `input · ${counterLabel}`;
+    }
+    if (elements.stageTreeTokens) elements.stageTreeTokens.textContent = `${tokensAfterTree} tokens`;
+    if (elements.stageTreeDetail) {
+      const treePct = tokensBefore > 0 ? ((treeSavedTokens / tokensBefore) * 100).toFixed(1) : "0.0";
+      const treeMs = data.timings_ms && data.timings_ms.tree != null ? ` · ${Math.round(data.timings_ms.tree)} ms` : "";
+      elements.stageTreeDetail.textContent = `-${treeSavedTokens} tok (${treePct}%) · target ${targetRatioPct}%${treeMs}`;
+    }
+    if (elements.stageFinalTokens) elements.stageFinalTokens.textContent = `${tokensAfter} tokens`;
+    if (elements.stageFinalDetail) {
+      const semMs = data.timings_ms && data.timings_ms.semantic != null ? ` · ${Math.round(data.timings_ms.semantic)} ms` : "";
+      elements.stageFinalDetail.textContent =
+        `-${semanticSavedTokens} lexical · -${savedTokens} total (${savedPercent}% saved · unreviewed)${semMs}`;
+    }
+
+    document.querySelector("#original-title").textContent = "Original, tree-annotated";
+    document.querySelector("#original-count").textContent = `${tokensBefore} tokens`;
+    if (elements.prunedTitle) elements.prunedTitle.textContent = "Middle · Pruned text";
+    if (elements.prunedCount) {
+      elements.prunedCount.textContent = `${tokensAfterTree} tokens · -${treeSavedTokens} tree`;
+    }
+    document.querySelector("#compressed-title").textContent = "Final lexical proposal (unreviewed)";
+    document.querySelector("#compressed-count").textContent =
+      `${tokensAfter} tokens · -${semanticSavedTokens} lexical · ${savedPercent}% total`;
+
+    document.querySelector("#annotated-text").innerHTML = annotateOriginal(
+      originalText,
+      treeData.deleted || [],
+      treeData.vetoed || []
+    );
+    const { prunedHtml, finalHtml } = annotateCombinedStages(
+      prunedText,
+      finalText,
+      semanticData.edits || [],
+      semanticData.decisions || [],
+      treeData.substitutions || {}
+    );
+    if (elements.prunedText) elements.prunedText.innerHTML = prunedHtml;
+    document.querySelector("#compressed-text").innerHTML = finalHtml;
+
+    if (elements.semanticBanner) {
+      elements.semanticBanner.hidden = false;
+      populateSemanticMetadataBanner(semanticData, {
+        isCombined: true,
+        treeData,
+        totalSavedTokens: savedTokens,
+        inputPricePerMillion: inputPrice,
+        totalCostSavedUsd,
+        extraWarnings: data.warnings || [],
+      });
+    }
+
+    const treeCutsCount = (treeData.deleted || []).length;
+    const treeVetoedCount = (treeData.vetoed || []).length;
+    const semanticEditsCount = (semanticData.edits || []).length;
+    const semanticRejectedCount = (semanticData.decisions || []).filter(d => d.decision !== "selected").length;
+
+    document.querySelector("#deletion-count").textContent = treeCutsCount;
+    if (elements.deletionLabel) elements.deletionLabel.textContent = "tree cuts made";
+    document.querySelector("#protected-count").textContent = treeVetoedCount;
+    if (elements.protectedLabel) elements.protectedLabel.textContent = "tree spans protected";
+    document.querySelector("#substitution-count").textContent = semanticEditsCount;
+    if (elements.substitutionLabel) elements.substitutionLabel.textContent = "lexical proposals (unreviewed)";
+    if (elements.rejectedCount) elements.rejectedCount.textContent = semanticRejectedCount;
+    if (elements.rejectedLabel) elements.rejectedLabel.textContent = "lexical candidates rejected";
+
+    if (elements.auditSummaryLabel) {
+      elements.auditSummaryLabel.textContent =
+        `Combined audit trail (${treeCutsCount} tree cuts, ${treeVetoedCount} protected · ${semanticEditsCount} lexical proposed, ${semanticRejectedCount} rejected)`;
+    }
+    document.querySelector("#audit-list").innerHTML = buildCombinedAudit(treeData, semanticData, {
+      treeSavedTokens,
+      semanticSavedTokens,
+      semanticBackedOff: finalText === prunedText,
+    });
+    document.querySelector("#audit-details").open = true;
   } else {
     semanticReviewState.active = false;
     if (elements.semanticApprovalWorkflow) {
@@ -777,77 +1349,23 @@ function renderResult(data, requestPayload = null) {
     }
   }
 
-  const totalMs = data.timings_ms ? (data.timings_ms.total != null ? data.timings_ms.total : 0) : 0;
+  const totalMs = data.timings_ms
+    ? (data.timings_ms.total != null
+      ? data.timings_ms.total
+      : ((data.tree && data.tree.timings_ms && data.tree.timings_ms.total) || 0) +
+        ((data.semantic && data.semantic.timings_ms && data.semantic.timings_ms.total) || 0))
+    : 0;
   document.querySelector("#time-taken").textContent = Math.round(totalMs);
 
-  // Semantic metadata banner & warnings
-  if (elements.semanticBanner) {
+  // Semantic metadata banner & warnings for standalone semantic mode
+  if (!isTreeSemantic && elements.semanticBanner) {
     elements.semanticBanner.hidden = !isSemantic;
     if (isSemantic) {
-      if (elements.reviewStatusBadge) {
-        elements.reviewStatusBadge.textContent = `Review: ${data.review_status || "pending"}`;
-      }
-      if (elements.tokenCounterBadge) {
-        elements.tokenCounterBadge.textContent = `Tokenizer: ${data.token_counter || "tiktoken"}`;
-      }
-      const vm = (data.provider_metadata && data.provider_metadata.vectors) || null;
-      const isSynthetic = (data.vector_label && data.vector_label.toLowerCase().includes("synthetic")) || (data.provider_metadata && data.provider_metadata.vector_source === "synthetic");
-      const armUpper = (data.provider_metadata && data.provider_metadata.arm ? data.provider_metadata.arm : "b0").toUpperCase();
-
-      if (elements.vectorLabelBadge) {
-        if (armUpper === "B0") {
-          elements.vectorLabelBadge.textContent = "Vectors: none";
-          elements.vectorLabelBadge.title = "B0 uses curated rules only. Vectors not loaded.";
-        } else if (isSynthetic) {
-          elements.vectorLabelBadge.textContent = "Vectors: Bundled synthetic fixture (software fixture, not trained embeddings)";
-          elements.vectorLabelBadge.title = data.vector_label || "Bundled synthetic software fixture";
-        } else {
-          elements.vectorLabelBadge.textContent = `Vectors: ${data.vector_label || "custom local file"}`;
-          elements.vectorLabelBadge.title = data.vector_label || "";
-        }
-      }
-
-      if (elements.vectorRowsBadge) {
-        if (vm && armUpper !== "B0") {
-          const retained = vm.retained_rows.toLocaleString();
-          const source = vm.source_rows.toLocaleString();
-          const cap = vm.max_words ? (vm.max_words >= 1000 ? `${vm.max_words / 1000}k` : vm.max_words) : "none";
-          const fixtureTag = isSynthetic ? "Synthetic fixture · " : "";
-          elements.vectorRowsBadge.textContent = `${fixtureTag}${retained} of ${source} rows retained (cap: ${cap})`;
-          elements.vectorRowsBadge.hidden = false;
-          if (vm.retained_rows >= 400000) {
-            elements.vectorRowsBadge.classList.add("badge-warning");
-            elements.vectorRowsBadge.title = "400k full retention selected: cold load may incur higher initial latency and memory usage.";
-          } else {
-            elements.vectorRowsBadge.classList.remove("badge-warning");
-            elements.vectorRowsBadge.title = "";
-          }
-        } else {
-          elements.vectorRowsBadge.hidden = true;
-        }
-      }
-      if (elements.configHashBadge) {
-        elements.configHashBadge.textContent = `Config: ${(data.config_hash || "unknown").slice(0, 12)}`;
-        elements.configHashBadge.title = data.config_hash || "Configuration hash unavailable";
-      }
-      if (elements.costSavedBadge) {
-        const price = data.input_price_per_million != null ? data.input_price_per_million : 0;
-        elements.costSavedBadge.textContent = `Gross input est.: $${(data.cost_saved_usd || 0).toFixed(6)} (@ $${price.toFixed(2)}/1M · unreviewed proposal)`;
-      }
-      if (elements.semanticWarningsList) {
-        const warnings = data.warnings || [];
-        if (warnings.length > 0) {
-          elements.semanticWarningsList.innerHTML = warnings.map(w => `<div class="warning-callout">${escapeHtml(w)}</div>`).join("");
-          elements.semanticWarningsList.hidden = false;
-        } else {
-          elements.semanticWarningsList.innerHTML = "";
-          elements.semanticWarningsList.hidden = true;
-        }
-      }
+      populateSemanticMetadataBanner(data, { isCombined: false });
     }
   }
 
-  // Annotations
+  // Annotations for standalone modes
   if (isSemantic) {
     const { origHtml, compHtml } = annotateSemantic(
       data.original,
@@ -860,7 +1378,7 @@ function renderResult(data, requestPayload = null) {
   } else if (isHybrid) {
     document.querySelector("#annotated-text").innerHTML = escapeHtml(data.original);
     document.querySelector("#compressed-text").innerHTML = escapeHtml(data.compressed);
-  } else {
+  } else if (!isTreeSemantic) {
     document.querySelector("#annotated-text").innerHTML = annotateOriginal(data.original, data.deleted || [], data.vetoed || []);
     document.querySelector("#compressed-text").innerHTML = annotateCompressed(data.compressed, data.substitutions || {});
   }
@@ -892,7 +1410,7 @@ function renderResult(data, requestPayload = null) {
       elements.auditSummaryLabel.textContent = `Open the substitution audit (${editsCount} selected, ${rejectedCount} rejected)`;
     }
     document.querySelector("#audit-list").innerHTML = buildSemanticAudit(data);
-  } else {
+  } else if (!isTreeSemantic) {
     document.querySelector("#deletion-count").textContent = (data.deleted || []).length;
     if (elements.deletionLabel) elements.deletionLabel.textContent = "cuts made";
     document.querySelector("#protected-count").textContent = (data.vetoed || []).length;
@@ -901,6 +1419,14 @@ function renderResult(data, requestPayload = null) {
     if (elements.substitutionLabel) elements.substitutionLabel.textContent = "phrases shortened";
     if (elements.auditSummaryLabel) elements.auditSummaryLabel.textContent = "Open the audit trail";
     document.querySelector("#audit-list").innerHTML = buildAudit(data);
+  }
+
+  if (selectedMode() !== "semantic") {
+    semanticReviewState.active = false;
+    if (elements.semanticApprovalWorkflow) {
+      elements.semanticApprovalWorkflow.hidden = true;
+    }
+    if (elements.persistTemplateButton) elements.persistTemplateButton.disabled = true;
   }
 
   elements.result.hidden = false;
@@ -983,27 +1509,82 @@ function updateSemanticSettings() {
   if (semanticReviewState.active) {
     invalidateStaleReviewState("Semantic configuration changed. Re-run compression to generate suggestions under the new settings.");
   }
+  invalidateInFlightCompression();
 }
 
 function updateMode() {
   const mode = selectedMode();
+  if (state.resultMode && state.resultMode !== mode) {
+    elements.result.hidden = true;
+    state.resultMode = null;
+  }
   const isHybrid = mode === "hybrid_sentinel";
   const isSemantic = mode === "semantic";
+  const isTreeSemantic = mode === "tree_semantic";
+  const usesSemanticControls = isSemantic || isTreeSemantic;
 
-  // Hide ratio/substitute controls in semantic mode
+  // Show target_ratio slider in tree, hybrid, and combined tree_semantic modes; hide only in standalone semantic mode.
   if (elements.standardControls) {
     elements.standardControls.hidden = isSemantic;
   }
-  elements.substitute.disabled = isHybrid;
+  elements.substitute.disabled = isHybrid || isTreeSemantic;
+  if (elements.substituteControl) {
+    elements.substituteControl.hidden = isTreeSemantic;
+  }
 
-  // Toggle semantic settings visibility
+  // Toggle semantic settings visibility for semantic and tree_semantic modes.
   if (elements.semanticSettings) {
-    elements.semanticSettings.hidden = !isSemantic;
-    elements.semanticSettings.disabled = !isSemantic;
+    elements.semanticSettings.hidden = !usesSemanticControls;
+    elements.semanticSettings.disabled = !usesSemanticControls;
+  }
+  if (elements.semanticSettingsLegend) {
+    elements.semanticSettingsLegend.textContent = isTreeSemantic
+      ? "Stage 2 · Semantic substitution settings (run on pruned text)"
+      : "Semantic substitution settings";
+  }
+  if (elements.semanticWarningCopy) {
+    elements.semanticWarningCopy.textContent = isTreeSemantic
+      ? "Two-stage experimental mode: deterministic tree pruning runs first at the target ratio, then offline lexical proposals run on the pruned text. Combined output is unreviewed and approved-template persistence is disabled."
+      : "Offline lexical suggestions with local assets. Token savings, cosine similarity, and grammar guards do not establish meaning preservation; human review is required before using rewritten prompts.";
+  }
+
+  // Lock tokenizer to o200k_base in combined tree_semantic mode so both stages share one counter.
+  if (elements.semanticEncoding) {
+    if (isTreeSemantic) {
+      elements.semanticEncoding.value = "o200k_base";
+      elements.semanticEncoding.disabled = true;
+    } else {
+      elements.semanticEncoding.disabled = false;
+    }
+  }
+  if (elements.semanticEncodingCaption) {
+    elements.semanticEncodingCaption.textContent = isTreeSemantic
+      ? "Pinned to o200k_base so tree pruning and semantic stages share one recount."
+      : "Tokenizer used for full-text recount.";
+  }
+
+  // Never keep approved-template persistence active outside standalone semantic mode.
+  if (!isSemantic) {
+    previewRequestId += 1;
+    if (semanticReviewState.active) {
+      semanticReviewState.active = false;
+      semanticReviewState.savedTemplate = null;
+      semanticReviewState.savedAudit = null;
+    }
+    if (elements.semanticApprovalWorkflow) {
+      elements.semanticApprovalWorkflow.hidden = true;
+    }
+    if (elements.persistTemplateButton) elements.persistTemplateButton.disabled = true;
+    if (elements.copyApprovedButton) elements.copyApprovedButton.disabled = true;
+    if (elements.exportTextButton) elements.exportTextButton.disabled = true;
+    if (elements.exportAuditButton) elements.exportAuditButton.disabled = true;
   }
 
   // Update mode note
-  if (isSemantic) {
+  if (isTreeSemantic) {
+    elements.modeNote.textContent =
+      "Opt-in combined run: tree pruning cuts subtrees at the target ratio, then offline lexical proposals run on the pruned text. Combined output is unreviewed and cannot be saved as an approved template.";
+  } else if (isSemantic) {
     elements.modeNote.textContent =
       "Offline lexical suggestions with local vectors and structural guards. Human review is required before using rewritten prompts.";
   } else if (isHybrid) {
@@ -1014,65 +1595,88 @@ function updateMode() {
       "Tree pruning shows each deletion and protection decision.";
   }
 
-  if (isSemantic) {
+  if (usesSemanticControls) {
     updateSemanticSettings();
   }
 }
 
+function buildSemanticSettingsPayload() {
+  const arm = elements.semanticArm ? elements.semanticArm.value : "b0";
+  const useWordnet = elements.semanticWordnet ? elements.semanticWordnet.checked : false;
+  const vectorSource = elements.semanticVectorSource ? elements.semanticVectorSource.value : "synthetic";
+  const vectorPath = elements.semanticVectorPath ? elements.semanticVectorPath.value.trim() : "";
+  const retentionElem = elements.semanticVectorMaxWords;
+  const vectorMaxWords = retentionElem ? Number(retentionElem.value) : 50000;
+  const encoding = elements.semanticEncoding ? elements.semanticEncoding.value : "o200k_base";
+  const maxCandidates = parseInt(elements.semanticMaxCandidates.value, 10) || 8;
+  const embeddingSlots = parseInt(elements.semanticEmbeddingSlots.value, 10) || 4;
+  const similarityOn = elements.semanticSimilarityToggle && elements.semanticSimilarityToggle.checked;
+  const minSimilarity = similarityOn ? parseFloat(elements.semanticMinSimilarity.value) : null;
+  const adaptiveSimilarity = Boolean(similarityOn && elements.semanticAdaptiveSimilarity.checked);
+  const rawPrice = elements.semanticPrice ? parseFloat(elements.semanticPrice.value) : 0.0;
+  const price = Number.isFinite(rawPrice) ? Math.max(0, rawPrice) : 0.0;
+
+  const settings = {
+    arm,
+    use_wordnet: useWordnet,
+    vector_source: vectorSource,
+    vector_max_words: vectorMaxWords,
+    encoding,
+    max_candidates: maxCandidates,
+    embedding_slots: embeddingSlots,
+    min_embedding_similarity: minSimilarity,
+    adaptive_similarity: adaptiveSimilarity,
+    input_price_per_million: price,
+  };
+
+  if (arm !== "b0" && vectorSource === "local") {
+    if (!vectorPath) {
+      throw new Error("Enter a valid local vector file path or choose bundled synthetic vectors.");
+    }
+    settings.vector_path = vectorPath;
+  }
+
+  return settings;
+}
+
 async function compressText() {
+  const requestId = ++compressRequestId;
+  inFlightCompressId = requestId;
+  previewRequestId += 1;
+  const requestSnapshot = captureWorkbenchSnapshot();
+
   elements.error.hidden = true;
   elements.button.disabled = true;
-  const mode = selectedMode();
+  const mode = requestSnapshot.mode;
   elements.button.textContent =
     mode === "hybrid_sentinel"
       ? "Loading or compressing…"
       : mode === "semantic"
       ? "Finding suggestions…"
+      : mode === "tree_semantic"
+      ? "Pruning + proposing…"
       : "Compressing…";
 
   try {
     let payload;
     if (mode === "semantic") {
-      const arm = elements.semanticArm ? elements.semanticArm.value : "b0";
-      const useWordnet = elements.semanticWordnet ? elements.semanticWordnet.checked : false;
-      const vectorSource = elements.semanticVectorSource ? elements.semanticVectorSource.value : "synthetic";
-      const vectorPath = elements.semanticVectorPath ? elements.semanticVectorPath.value.trim() : "";
-      const retentionElem = elements.semanticVectorMaxWords;
-      const vectorMaxWords = retentionElem ? Number(retentionElem.value) : 50000;
-      const encoding = elements.semanticEncoding ? elements.semanticEncoding.value : "o200k_base";
-      const maxCandidates = parseInt(elements.semanticMaxCandidates.value, 10) || 8;
-      const embeddingSlots = parseInt(elements.semanticEmbeddingSlots.value, 10) || 4;
-      const similarityOn = elements.semanticSimilarityToggle && elements.semanticSimilarityToggle.checked;
-      const minSimilarity = similarityOn ? parseFloat(elements.semanticMinSimilarity.value) : null;
-      const adaptiveSimilarity = similarityOn && elements.semanticAdaptiveSimilarity.checked;
-      const price = elements.semanticPrice ? parseFloat(elements.semanticPrice.value) || 0.0 : 0.0;
-
       payload = {
-        text: elements.source.value,
+        text: requestSnapshot.source,
         mode: "semantic",
-        arm: arm,
-        use_wordnet: useWordnet,
-        vector_source: vectorSource,
-        vector_max_words: vectorMaxWords,
-        encoding: encoding,
-        max_candidates: maxCandidates,
-        embedding_slots: embeddingSlots,
-        min_embedding_similarity: minSimilarity,
-        adaptive_similarity: adaptiveSimilarity,
-        input_price_per_million: Math.max(0, price),
+        ...buildSemanticSettingsPayload(),
       };
-
-      if (arm !== "b0" && vectorSource === "local") {
-        if (!vectorPath) {
-          throw new Error("Enter a valid local vector file path or choose bundled synthetic vectors.");
-        }
-        payload.vector_path = vectorPath;
-      }
+    } else if (mode === "tree_semantic") {
+      payload = {
+        text: requestSnapshot.source,
+        mode: "tree_semantic",
+        target_ratio: Number(requestSnapshot.ratio) / 100,
+        ...buildSemanticSettingsPayload(),
+      };
     } else {
       payload = {
-        text: elements.source.value,
-        target_ratio: Number(elements.ratio.value) / 100,
-        substitute: elements.substitute.checked,
+        text: requestSnapshot.source,
+        target_ratio: Number(requestSnapshot.ratio) / 100,
+        substitute: requestSnapshot.substitute,
         mode: mode,
       };
     }
@@ -1083,23 +1687,41 @@ async function compressText() {
       body: JSON.stringify(payload),
     });
     const data = await response.json();
+    if (!isCurrentCompressionRequest(requestId, requestSnapshot)) {
+      return;
+    }
     if (!response.ok) throw new Error(data.error || "Compression failed.");
     renderResult(data, payload);
   } catch (error) {
+    if (!isCurrentCompressionRequest(requestId, requestSnapshot)) {
+      return;
+    }
     elements.error.textContent = error.message;
     elements.error.hidden = false;
   } finally {
-    elements.button.disabled = false;
-    elements.button.textContent = "Compress text";
+    if (requestId === inFlightCompressId) {
+      inFlightCompressId = 0;
+      elements.button.disabled = false;
+      elements.button.textContent = "Compress text";
+    }
   }
 }
 
 function renderExamples(examples) {
   elements.exampleList.innerHTML = examples.map(example => {
+    const isTreeSemantic = example.mode === "tree_semantic";
     const isSemantic = example.mode === "semantic";
     const isHybrid = example.mode === "hybrid_sentinel";
-    const tagClass = isSemantic ? "tag-semantic" : isHybrid ? "tag-hybrid" : "tag-tree";
-    const tagLabel = isSemantic
+    const tagClass = isTreeSemantic
+      ? "tag-combined"
+      : isSemantic
+      ? "tag-semantic"
+      : isHybrid
+      ? "tag-hybrid"
+      : "tag-tree";
+    const tagLabel = isTreeSemantic
+      ? `Tree + Semantic · ${(example.arm || "b0").toUpperCase()}`
+      : isSemantic
       ? `Semantic · ${(example.arm || "b0").toUpperCase()}`
       : isHybrid
       ? "Hybrid"
@@ -1117,17 +1739,27 @@ function renderExamples(examples) {
     button.addEventListener("click", () => {
       const example = state.examples.find(item => item.id === button.dataset.exampleId);
       if (!example) return;
+      invalidateInFlightCompression();
       elements.source.value = example.text;
       const targetMode = example.mode || "conservative";
-      const modeRadio = elements.modes.find(mode => mode.value === targetMode);
-      if (modeRadio) modeRadio.checked = true;
+      elements.modes.forEach(mode => {
+        mode.checked = mode.value === targetMode;
+      });
 
-      if (targetMode === "semantic") {
+      if (example.target_ratio != null && elements.ratio) {
+        const pct = Math.min(100, Math.max(10, Math.round(Number(example.target_ratio) * 100 / 5) * 5));
+        elements.ratio.value = String(pct);
+        if (elements.ratioOutput) {
+          elements.ratioOutput.textContent = `${pct}%`;
+        }
+      }
+
+      if (targetMode === "semantic" || targetMode === "tree_semantic") {
         if (example.arm && elements.semanticArm) {
           elements.semanticArm.value = example.arm;
         }
-        if (example.vector_source && elements.semanticVectorSource) {
-          elements.semanticVectorSource.value = example.vector_source;
+        if (elements.semanticVectorSource) {
+          elements.semanticVectorSource.value = example.vector_source || "synthetic";
         }
         const retentionElem = elements.semanticVectorMaxWords;
         if (retentionElem) {
@@ -1143,14 +1775,23 @@ function renderExamples(examples) {
   });
 }
 
+function withCombinedSample(examples) {
+  const list = Array.isArray(examples) ? [...examples] : [];
+  if (!list.some(item => item && item.mode === "tree_semantic")) {
+    list.push(TREE_SEMANTIC_SAMPLE);
+  }
+  return list;
+}
+
 async function loadExamples() {
   try {
     const response = await fetch("/api/examples");
     const data = await response.json();
-    state.examples = data.examples;
+    state.examples = withCombinedSample(data.examples);
     renderExamples(state.examples);
   } catch (_) {
-    elements.exampleList.innerHTML = '<p class="loading-line">Examples could not be loaded.</p>';
+    state.examples = [TREE_SEMANTIC_SAMPLE];
+    renderExamples(state.examples);
   }
 }
 
@@ -1167,9 +1808,25 @@ function updateCharacterCount() {
 }
 
 elements.form.addEventListener("submit", event => { event.preventDefault(); compressText(); });
-elements.source.addEventListener("input", updateCharacterCount);
-elements.ratio.addEventListener("input", () => { elements.ratioOutput.textContent = `${elements.ratio.value}%`; });
-elements.modes.forEach(mode => mode.addEventListener("change", updateMode));
+elements.source.addEventListener("input", () => {
+  invalidateInFlightCompression();
+  updateCharacterCount();
+});
+elements.ratio.addEventListener("input", () => {
+  elements.ratioOutput.textContent = `${elements.ratio.value}%`;
+  invalidateInFlightCompression();
+});
+elements.ratio.addEventListener("change", () => {
+  elements.ratioOutput.textContent = `${elements.ratio.value}%`;
+  invalidateInFlightCompression();
+});
+if (elements.substitute) {
+  elements.substitute.addEventListener("change", invalidateInFlightCompression);
+}
+elements.modes.forEach(mode => mode.addEventListener("change", () => {
+  invalidateInFlightCompression();
+  updateMode();
+}));
 
 if (elements.approveAllButton) {
   elements.approveAllButton.addEventListener("click", () => {
@@ -1219,14 +1876,21 @@ if (elements.semanticSimilarityToggle) {
   elements.semanticSimilarityToggle.addEventListener("change", updateSemanticSettings);
 }
 if (elements.semanticMinSimilarity) {
-  elements.semanticMinSimilarity.addEventListener("input", () => {
+  const handleMinSimilarityChange = () => {
     if (elements.semanticMinSimilarityOutput) {
       elements.semanticMinSimilarityOutput.textContent = elements.semanticMinSimilarity.value;
     }
+    invalidateInFlightCompression();
     if (semanticReviewState.active) {
       invalidateStaleReviewState("Semantic settings changed. Re-run compression before saving.");
     }
-  });
+  };
+  elements.semanticMinSimilarity.addEventListener("input", handleMinSimilarityChange);
+  elements.semanticMinSimilarity.addEventListener("change", handleMinSimilarityChange);
+}
+if (elements.semanticPrice) {
+  elements.semanticPrice.addEventListener("input", invalidateInFlightCompression);
+  elements.semanticPrice.addEventListener("change", invalidateInFlightCompression);
 }
 [
   elements.semanticEncoding,
@@ -1236,16 +1900,14 @@ if (elements.semanticMinSimilarity) {
   elements.semanticWordnet,
   elements.semanticAdaptiveSimilarity,
 ].filter(Boolean).forEach(control => {
-  control.addEventListener("input", () => {
+  const handleSemanticControlChange = () => {
+    invalidateInFlightCompression();
     if (semanticReviewState.active) {
       invalidateStaleReviewState("Semantic settings changed. Re-run compression before saving.");
     }
-  });
-  control.addEventListener("change", () => {
-    if (semanticReviewState.active) {
-      invalidateStaleReviewState("Semantic settings changed. Re-run compression before saving.");
-    }
-  });
+  };
+  control.addEventListener("input", handleSemanticControlChange);
+  control.addEventListener("change", handleSemanticControlChange);
 });
 
 elements.tabs.forEach(tab => {

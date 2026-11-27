@@ -1,4 +1,5 @@
 from importlib.util import module_from_spec, spec_from_file_location
+import dataclasses
 import http.client
 import json
 from pathlib import Path
@@ -9,6 +10,7 @@ from threading import Thread
 import pytest
 
 from eval.baselines import Compressed
+from promptcomp.types import Deletion, Span
 
 ui_path = Path(__file__).resolve().parents[1] / "scripts" / "ui.py"
 spec = spec_from_file_location("ui_server", ui_path)
@@ -24,6 +26,10 @@ def test_example_catalog_contains_sample_documents():
     semantic = [item for item in examples if item.get("mode") == "semantic"]
     assert len(semantic) == 3
     assert {item["arm"] for item in semantic} == {"b0", "b1", "b2"}
+    combined = next(item for item in examples if item["id"] == "tree_semantic_stages")
+    assert combined["mode"] == "tree_semantic"
+    assert combined["target_ratio"] == 0.9
+    assert "in order to" in combined["text"]
 
 
 def test_ui_server_runs_as_documented_command():
@@ -109,6 +115,253 @@ def test_semantic_protected_sentence_is_unchanged():
     assert data["saved_tokens"] == data["cost_saved_usd"] == 0
     assert data["edits"] == []
     assert data["decisions"][0]["reason"].startswith("protected_")
+
+
+def test_tree_semantic_reports_distinct_stage_gains_and_full_audits(tmp_path, monkeypatch):
+    monkeypatch.setattr(ui_server, "REPO_ROOT", tmp_path)
+    text = "The committee approved the budget in order to begin quickly."
+    data = ui_server._compress_payload({
+        "mode": "tree_semantic", "text": text, "target_ratio": 0.9,
+        "arm": "b0", "substitute": True,
+    })
+    assert data["original"] == data["tree"]["original"] == text
+    assert data["pruned"] == data["tree"]["compressed"] == "The committee approved the budget in order to begin."
+    assert data["semantic"]["original"] == data["pruned"]
+    assert data["compressed"] == data["semantic"]["compressed"] == "The committee approved the budget to begin."
+    assert (data["tokens_before"], data["tokens_after_tree"], data["tokens_after"]) == (11, 10, 8)
+    assert (data["tree_saved_tokens"], data["semantic_saved_tokens"], data["saved_tokens"]) == (1, 2, 3)
+    assert data["ratio"] == 8 / 11
+    assert data["saved_percent"] == round(300 / 11, 1)
+    assert data["tree"]["substitutions"] == {}
+    assert data["tree"]["deleted"]
+    assert data["semantic"]["edits"][0]["original"] == "in order to"
+    assert data["semantic"]["decisions"][0]["decision"] == "selected"
+    assert data["tree"]["token_counter"] == data["semantic"]["token_counter"] == data["token_counter"]
+    assert data["review_status"] == "unreviewed"
+    assert any("unreviewed" in warning for warning in data["warnings"])
+    assert data["timings_ms"]["total"] >= data["timings_ms"]["tree"] >= 0
+    assert data["timings_ms"]["total"] >= data["timings_ms"]["semantic"] >= 0
+
+
+def test_tree_semantic_preserves_protected_clause_and_tree_audit(tmp_path, monkeypatch):
+    monkeypatch.setattr(ui_server, "REPO_ROOT", tmp_path)
+    text = "The team worked carefully, unless spending exceeds $5,000."
+    data = ui_server._compress_payload({"mode": "tree_semantic", "text": text, "target_ratio": 0.6})
+    protected = "unless spending exceeds $5,000"
+    assert protected in data["original"]
+    assert protected in data["pruned"]
+    assert protected in data["compressed"]
+    assert data["tree"]["vetoed"]
+    assert data["tree"]["original"] == text
+    assert data["semantic"]["original"] == data["pruned"]
+
+
+def test_tree_semantic_no_edit_keeps_pruned_text(tmp_path, monkeypatch):
+    monkeypatch.setattr(ui_server, "REPO_ROOT", tmp_path)
+    text = "They must work in order to finish the assignment."
+    data = ui_server._compress_payload({"mode": "tree_semantic", "text": text, "target_ratio": 1.0})
+    assert data["pruned"] == data["compressed"] == text
+    assert data["tokens_after_tree"] == data["tokens_after"]
+    assert data["semantic_saved_tokens"] == 0
+    assert data["semantic"]["edits"] == []
+    assert data["semantic"]["decisions"][0]["reason"].startswith("protected_")
+
+
+def test_tree_semantic_uses_semantic_provider_options(tmp_path, monkeypatch):
+    monkeypatch.setattr(ui_server, "REPO_ROOT", tmp_path)
+    data = ui_server._compress_payload({
+        "mode": "tree_semantic", "text": "We discuss the methodologies. These projects necessitate planning.",
+        "target_ratio": 1.0, "arm": "b2", "vector_source": "synthetic",
+        "max_candidates": 8, "embedding_slots": 3,
+        "min_embedding_similarity": 0.75, "adaptive_similarity": True,
+        "encoding": "tiktoken:o200k_base", "input_price_per_million": 2.5,
+    })
+    assert data["semantic"]["provider_metadata"]["arm"] == "b2"
+    assert data["semantic"]["provider_metadata"]["embedding_slots"] == 3
+    assert "synthetic" in data["semantic"]["vector_label"].lower()
+    assert data["semantic"]["input_price_per_million"] == 2.5
+    assert data["semantic"]["decisions"]
+
+
+@pytest.mark.parametrize("settings, message", [
+    ({"target_ratio": "bad"}, "Target ratio"),
+    ({"target_ratio": 0.09}, "Target ratio"),
+    ({"target_ratio": 1.01}, "Target ratio"),
+    ({"encoding": "cl100k_base"}, "o200k_base"),
+    ({"encoding": "bad"}, "encoding"),
+    ({"arm": "b3"}, "arm"),
+    ({"arm": "b1", "vector_source": "local"}, "vector_path"),
+])
+def test_tree_semantic_rejects_invalid_inputs(settings, message, tmp_path, monkeypatch):
+    monkeypatch.setattr(ui_server, "REPO_ROOT", tmp_path)
+    with pytest.raises(ValueError, match=message):
+        ui_server._compress_payload({
+            "mode": "tree_semantic", "text": "The committee approved the budget in order to begin quickly.",
+            **settings,
+        })
+
+
+def test_tree_semantic_discards_token_increasing_semantic_audit(tmp_path, monkeypatch):
+    monkeypatch.setattr(ui_server, "REPO_ROOT", tmp_path)
+    actual_semantic = ui_server._semantic_payload
+
+    def increasing_semantic(payload, pruned, **kwargs):
+        result = actual_semantic(payload, pruned, **kwargs)
+        result["compressed"] = pruned + " This addition increases token use substantially."
+        # The combined mode must measure the proposal, even if a provider's
+        # reported count is stale or incorrect.
+        result["tokens_after"] = result["tokens_before"]
+        return result
+
+    monkeypatch.setattr(ui_server, "_semantic_payload", increasing_semantic)
+    data = ui_server._compress_payload({
+        "mode": "tree_semantic", "text": "The committee approved the budget in order to begin quickly.",
+        "target_ratio": 0.9,
+    })
+    assert data["compressed"] == data["pruned"] == data["semantic"]["compressed"]
+    assert data["tokens_after"] == data["tokens_after_tree"] == data["semantic"]["tokens_after"]
+    assert data["semantic_saved_tokens"] == data["semantic"]["saved_tokens"] == 0
+    assert data["semantic"]["edits"] == data["semantic"]["occurrences"] == []
+    assert not any(decision["decision"] == "selected" for decision in data["semantic"]["decisions"])
+    assert any("discarded" in warning for warning in data["semantic"]["warnings"])
+
+
+@pytest.mark.parametrize("text", [
+    "Please review the detailed request for {customer_name} carefully.",
+    'The report says "The committee approved the budget in order to begin quickly." Please review it.',
+    "~~~\nThe committee approved the budget in order to begin quickly.\n~~~\nPlease review the budget carefully.",
+])
+def test_tree_semantic_discards_tree_deletion_inside_lexical_frozen_range(text):
+    data = ui_server._compress_payload({"mode": "tree_semantic", "text": text, "target_ratio": 0.6})
+    assert data["pruned"] == data["tree"]["compressed"] == text
+    assert not data["tree"]["deleted"]
+    assert data["tree"]["tokens_before"] == data["tree"]["tokens_after"] == data["tokens_after_tree"]
+    assert data["tree_saved_tokens"] == 0
+    assert any("frozen range" in warning for warning in data["tree"]["warnings"])
+    assert any("frozen range" in warning for warning in data["warnings"])
+
+
+def test_tree_semantic_recounts_stale_nested_stage_counts(monkeypatch):
+    actual_compress = ui_server.compress
+    actual_semantic = ui_server._semantic_payload
+    counters = []
+
+    def stale_tree(*args, **kwargs):
+        counters.append(kwargs["counter"])
+        return dataclasses.replace(actual_compress(*args, **kwargs), tokens_before=1, tokens_after=1, ratio=1.0)
+
+    def stale_semantic(payload, pruned, **kwargs):
+        counters.append(kwargs["counter"])
+        result = actual_semantic(payload, pruned, **kwargs)
+        result.update(tokens_before=1, tokens_after=1, saved_tokens=0, ratio=1.0, saved_percent=0)
+        return result
+
+    monkeypatch.setattr(ui_server, "compress", stale_tree)
+    monkeypatch.setattr(ui_server, "_semantic_payload", stale_semantic)
+    data = ui_server._compress_payload({
+        "mode": "tree_semantic", "text": "The committee approved the budget in order to begin quickly.",
+        "target_ratio": 0.9,
+    })
+    assert (data["tokens_before"], data["tokens_after_tree"], data["tokens_after"]) == (11, 10, 8)
+    assert (data["tree"]["tokens_before"], data["tree"]["tokens_after"]) == (11, 10)
+    assert (data["semantic"]["tokens_before"], data["semantic"]["tokens_after"]) == (10, 8)
+    assert data["semantic"]["saved_tokens"] == data["semantic_saved_tokens"] == 2
+    assert counters[0] is counters[1]
+    assert not isinstance(counters[0], ui_server.CachedCounter)
+    assert data["semantic"]["review_status"] == "unreviewed"
+    assert "do not accept combined output" in data["semantic"]["workflow_disclaimer"]
+
+
+@pytest.mark.parametrize("tree_output, warning", [
+    ("The committee approved the budget in order to begin quickly. Extra words that increase tokens.", "increased"),
+    (" ", "empty"),
+])
+def test_tree_semantic_discards_increasing_or_blank_tree_stage(tree_output, warning, monkeypatch):
+    actual_compress = ui_server.compress
+    text = "The committee approved the budget in order to begin quickly."
+
+    def unsafe_tree(*args, **kwargs):
+        return dataclasses.replace(actual_compress(*args, **kwargs), compressed=tree_output)
+
+    monkeypatch.setattr(ui_server, "compress", unsafe_tree)
+    data = ui_server._compress_payload({"mode": "tree_semantic", "text": text, "target_ratio": 0.9})
+    assert data["pruned"] == data["semantic"]["original"] == text
+    assert data["tree"]["compressed"] == text
+    assert not data["tree"]["deleted"]
+    assert data["tree_saved_tokens"] == 0
+    assert data["tokens_before"] == data["tokens_after_tree"]
+    assert any(warning in message for message in data["tree"]["warnings"])
+
+
+def test_tree_semantic_freezes_lowercase_defined_term(monkeypatch):
+    actual_compress = ui_server.compress
+    text = '"service level" means the required level. The committee approved the service level quickly.'
+    start = text.rindex("service level")
+    end = start + len("service level")
+
+    def deleting_defined_term(*args, **kwargs):
+        result = actual_compress(*args, **kwargs)
+        deletion = Deletion(Span(start, end), "service level", "obj", 0.0, "test")
+        return dataclasses.replace(
+            result, compressed=text[:start] + text[end:], deleted=(deletion,),
+        )
+
+    monkeypatch.setattr(ui_server, "compress", deleting_defined_term)
+    data = ui_server._compress_payload({"mode": "tree_semantic", "text": text})
+    assert data["pruned"] == text
+    assert not data["tree"]["deleted"]
+    assert data["tree_saved_tokens"] == 0
+    assert any("frozen range" in warning for warning in data["tree"]["warnings"])
+
+
+def test_tree_semantic_discards_zero_saving_rewrite(monkeypatch):
+    actual_semantic = ui_server._semantic_payload
+
+    def zero_saving_semantic(payload, pruned, **kwargs):
+        result = actual_semantic(payload, pruned, **kwargs)
+        result["compressed"] = pruned.replace("The committee", "A committee", 1)
+        result["tokens_after"] = result["tokens_before"] - 2
+        return result
+
+    monkeypatch.setattr(ui_server, "_semantic_payload", zero_saving_semantic)
+    data = ui_server._compress_payload({
+        "mode": "tree_semantic", "text": "The committee approved the budget in order to begin quickly.",
+        "target_ratio": 0.9,
+    })
+    assert data["compressed"] == data["pruned"]
+    assert data["semantic_saved_tokens"] == data["semantic"]["saved_tokens"] == 0
+    assert data["semantic"]["tokens_before"] == data["semantic"]["tokens_after"]
+    assert data["semantic"]["edits"] == data["semantic"]["occurrences"] == []
+    assert not any(item["decision"] == "selected" for item in data["semantic"]["decisions"])
+    assert any(item["reason"] == "combined_stage_no_savings" for item in data["semantic"]["decisions"])
+
+
+@pytest.mark.parametrize("payload, message", [
+    ({"mode": "tree_semantic", "target_ratio": True}, "Target ratio"),
+    ({"mode": "tree_semantic", "encoding": "cl100k_base"}, "o200k_base"),
+    ({"mode": "tree_semantic", "arm": "bad"}, "arm"),
+    ({"mode": "tree_semantic", "input_price_per_million": -1}, "input_price_per_million"),
+    ({"mode": "tree_semantic", "protected_spans": []}, "protected_spans"),
+    ({"mode": "semantic", "protected_spans": []}, "protected_spans"),
+])
+def test_semantic_invalid_inputs_fail_before_tree(payload, message, monkeypatch):
+    def unexpected_tree(*args, **kwargs):
+        pytest.fail("tree compression ran before input validation")
+
+    monkeypatch.setattr(ui_server, "compress", unexpected_tree)
+    with pytest.raises(ValueError, match=message):
+        ui_server._compress_payload({
+            "text": "The committee approved the budget in order to begin quickly.", **payload,
+        })
+
+
+@pytest.mark.parametrize("handler", [
+    "_semantic_preview_payload", "_semantic_approve_payload", "_semantic_validate_payload",
+])
+@pytest.mark.parametrize("field", [{"mode": "tree_semantic"}, {"target_ratio": 0.9}])
+def test_semantic_approval_endpoints_reject_combined_fields(handler, field):
+    with pytest.raises(ValueError, match="tree_semantic"):
+        getattr(ui_server, handler)({"text": "A prompt.", **field})
 
 
 @pytest.mark.parametrize("arm,budget,slots", [
@@ -237,6 +490,36 @@ def test_semantic_http_routes_return_examples_result_and_validation_error():
         result = json.loads(response.read())
         assert response.status == 200
         assert result["compressed"] == "They worked to finish the assignment."
+
+        connection.request("POST", "/api/compress", body=json.dumps({
+            "mode": "tree_semantic", "arm": "b0", "target_ratio": 0.9,
+            "text": "The committee approved the budget in order to begin quickly.",
+        }), headers={"Content-Type": "application/json"})
+        response = connection.getresponse()
+        combined = json.loads(response.read())
+        assert response.status == 200
+        assert combined["mode"] == "tree_semantic"
+        assert (combined["tokens_before"], combined["tokens_after_tree"], combined["tokens_after"]) == (11, 10, 8)
+        assert combined["tree"]["original"] == combined["original"]
+        assert combined["semantic"]["original"] == combined["pruned"]
+
+        connection.request("POST", "/api/compress", body=json.dumps({
+            "mode": "tree_semantic", "encoding": "cl100k_base",
+            "text": "The committee approved the budget in order to begin quickly.",
+        }), headers={"Content-Type": "application/json"})
+        response = connection.getresponse()
+        error = json.loads(response.read())
+        assert response.status == 400
+        assert "o200k_base" in error["error"]
+
+        for endpoint in ("preview", "approve", "validate"):
+            connection.request("POST", f"/api/semantic/{endpoint}", body=json.dumps({
+                "mode": "tree_semantic", "text": "A prompt.",
+            }), headers={"Content-Type": "application/json"})
+            response = connection.getresponse()
+            error = json.loads(response.read())
+            assert response.status == 400
+            assert "tree_semantic" in error["error"]
 
         connection.request("POST", "/api/compress", body=json.dumps({
             "mode": "semantic", "arm": "b1", "vector_source": "local",

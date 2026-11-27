@@ -26,7 +26,7 @@
         <section class="intro" aria-labelledby="page-title">
         <div>
           <h1 id="page-title">See what survives<br>the edit.</h1>
-          <p class="lede">Paste a sentence or open an example. Compare tree pruning, guarded hybrid compression, and review-first semantic substitution.</p>
+          <p class="lede">Paste a sentence or open an example. Compare tree pruning, guarded hybrid compression, review-first semantic substitution, and opt-in combined tree plus semantic proposals.</p>
         </div>
         <div class="legend" aria-label="Annotation legend">
           <span><i class="swatch cut"></i>Removed</span>
@@ -54,7 +54,7 @@
           <div id="standard-controls" class="controls">
             <label for="ratio">Keep <output id="ratio-output" for="ratio">60%</output></label>
             <input id="ratio" type="range" min="10" max="100" step="5" value="60">
-            <label class="check-control"><input id="substitute" type="checkbox" checked> Shorten phrases</label>
+            <label id="substitute-control" class="check-control"><input id="substitute" type="checkbox" checked> Shorten phrases</label>
           </div>
         </div>
 
@@ -73,14 +73,18 @@
               <input type="radio" name="mode" value="semantic">
               <span><strong>Semantic substitution</strong><small>Offline lexical suggestions with local vectors and audit</small></span>
             </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="tree_semantic">
+              <span><strong>Tree + semantic</strong><small>Prune subtrees first, then propose unreviewed lexical edits</small></span>
+            </label>
           </fieldset>
           <p id="mode-note" class="mode-note">Tree pruning shows each deletion and protection decision.</p>
 
           <fieldset id="semantic-settings" class="semantic-settings" hidden>
-            <legend>Semantic substitution settings</legend>
+            <legend id="semantic-settings-legend">Semantic substitution settings</legend>
             <div class="semantic-warning-banner" role="note">
               <strong class="warning-badge">Experimental</strong>
-              <p>Offline lexical suggestions with local assets. Token savings, cosine similarity, and grammar guards do not establish meaning preservation; human review is required before using rewritten prompts.</p>
+              <p id="semantic-warning-copy">Offline lexical suggestions with local assets. Token savings, cosine similarity, and grammar guards do not establish meaning preservation; human review is required before using rewritten prompts.</p>
             </div>
             <div class="settings-grid">
               <div class="setting-group">
@@ -99,7 +103,7 @@
                   <option value="o200k_base" selected>o200k_base (GPT-4o / modern)</option>
                   <option value="cl100k_base">cl100k_base (GPT-4 / classic)</option>
                 </select>
-                <small class="setting-caption">Tokenizer used for full-text recount.</small>
+                <small id="semantic-encoding-caption" class="setting-caption">Tokenizer used for full-text recount.</small>
               </div>
 
               <div class="setting-group">
@@ -190,6 +194,29 @@
             </div>
           </div>
 
+          <div id="unreviewed-combined-banner" class="unreviewed-combined-banner" role="note" hidden>
+            <strong class="warning-badge">Unreviewed combined proposal</strong>
+            <p>Combined tree pruning plus offline lexical substitution produces an <strong>unreviewed proposal</strong>. Approved-template persistence is not available in <code>tree_semantic</code> mode; inspect both stage audits below before using any edited text.</p>
+          </div>
+
+          <div id="stage-breakdown" class="stage-breakdown" aria-label="Per-stage token counts" hidden>
+            <div class="stage-card">
+              <span class="stage-step">Input</span>
+              <strong id="stage-before-tokens">0</strong>
+              <small id="stage-before-detail">original tokens</small>
+            </div>
+            <div class="stage-card">
+              <span class="stage-step">Stage 1 · Tree pruned</span>
+              <strong id="stage-tree-tokens">0</strong>
+              <small id="stage-tree-detail">0 saved by tree pruning</small>
+            </div>
+            <div class="stage-card">
+              <span class="stage-step">Stage 2 · Lexical proposal</span>
+              <strong id="stage-final-tokens">0</strong>
+              <small id="stage-final-detail">0 saved by semantic stage · unreviewed</small>
+            </div>
+          </div>
+
           <div id="semantic-banner" class="semantic-banner" hidden>
             <div class="semantic-banner-row">
               <span id="review-status-badge" class="meta-badge badge-pending">Review: Pending</span>
@@ -202,10 +229,14 @@
             <div id="semantic-warnings-list" class="semantic-warnings-list" hidden></div>
           </div>
 
-          <div class="text-compare">
+          <div id="text-compare" class="text-compare">
             <article>
               <header><h3 id="original-title">Original, annotated</h3><span id="original-count"></span></header>
               <div id="annotated-text" class="text-panel"></div>
+            </article>
+            <article id="pruned-column" hidden>
+              <header><h3 id="pruned-title">Middle · Pruned text</h3><span id="pruned-count"></span></header>
+              <div id="pruned-text" class="text-panel pruned-panel"></div>
             </article>
             <article>
               <header><h3 id="compressed-title">Compressed</h3><span id="compressed-count"></span></header>
@@ -250,6 +281,7 @@
             <div><strong id="deletion-count">0</strong><span id="deletion-label">cuts made</span></div>
             <div><strong id="protected-count">0</strong><span id="protected-label">spans protected</span></div>
             <div><strong id="substitution-count">0</strong><span id="substitution-label">phrases shortened</span></div>
+            <div id="rejected-audit-cell" hidden><strong id="rejected-count">0</strong><span id="rejected-label">candidates rejected</span></div>
           </div>
 
           <div id="hybrid-report" class="hybrid-report" hidden>
