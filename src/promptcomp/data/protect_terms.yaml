@@ -1,4 +1,4 @@
-version: "protect-2026-07-24.2"
+version: "protect-2026-11-27.1"
 
 # spaCy NER labels whose entities must never be deleted.
 ner_numeric: [CARDINAL, MONEY, PERCENT, DATE, QUANTITY, ORDINAL, TIME]
