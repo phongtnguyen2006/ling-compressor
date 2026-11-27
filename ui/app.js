@@ -1147,7 +1147,7 @@ async function loadExamples() {
   try {
     const response = await fetch("/api/examples");
     const data = await response.json();
-    state.examples = data.examples;
+    state.examples = data.examples.filter(example => example.mode === "semantic");
     renderExamples(state.examples);
   } catch (_) {
     elements.exampleList.innerHTML = '<p class="loading-line">Examples could not be loaded.</p>';

@@ -1,4 +1,16 @@
-# promptcomp — auditable prompt compression
+# Ling Compressor — Semantic embedding
+
+The workbench opens with semantic substitution and B2 vector-neighbor search. Choose a local trained vector file for research runs. The bundled vectors are a synthetic demonstration.
+
+After setup, run `python scripts/ui.py` and open <http://localhost:8000>.
+
+| Development branch | Workflow |
+| --- | --- |
+| `workflow/tree-pruning` | Tree pruning experiments |
+| `workflow/semantic-embedding` | Standalone semantic substitution experiments |
+| `workflow/tree-and-semantic` | Integration and paired comparisons |
+
+Switch workflows with `git switch <branch>`.
 
 ## TL;DR
 
