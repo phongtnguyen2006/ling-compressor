@@ -25,7 +25,7 @@ tags:
 | Tokenization and vector lookup | Done | Local GloVe text vectors, exact cosine top-k lookup, 10k/50k/400k retained-row selection, WordNet candidates, and `tiktoken` counting are implemented. |
 | Substitution engine | Done | B0 curated/WordNet, B1 vector ranking, and B2 vector discovery run with POS, protected-text, and full-prompt token checks. |
 | Visual workbench | Done | Semantic substitution appears in the shared Ling Compressor UI with edit details, token counts, and local vector controls. |
-| Combined tree and semantic path | Implemented | The opt-in path runs tree pruning, then semantic proposals on its output; stage counts and audits are shown separately. Final text needs review. |
+| Combined tree and semantic path | Evaluated on 414 prompts | Combined output saved 4.92% of complete model input and passed 97 strict checks versus 102 originals. The semantic step saved 31 additional tokens and lost three passes. [Study and paired scores](combined-quality.md) |
 | Reviewed exact templates | Done for local use | A person can accept or reject each selected edit, save an approved template, export its audit, and invalidate it when source or configuration changes. |
 | Two-reviewer quality study | Ready for human work | A blinded 400k packet and local review screen support independent judgments; the paired reporter requires both reviewers before counting accepted savings. No human judgments have been collected. |
 | Paired IFEval model evaluation | Completed on all 414 frozen held-out prompts | Local Qwen passed 102 originals, 90 tree-pruned prompts, and 100 semantic prompts under strict scoring. [Paired study and per-prompt records](held-out-workflow-study.md) |

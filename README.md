@@ -53,6 +53,8 @@ The library skips inputs shorter than 500 tokens by default. The workbench and t
 
 ## Development and evaluation
 
+The [414-prompt combined quality study](docs/semantic-token-compression/combined-quality.md) compares final answer quality and token savings with both the original prompt and the intermediate tree output.
+
 The [tree-pruning revision study](docs/tree-pruning/output-directives.md) measures the effect of preserving explicit output instructions.
 
 The [414-prompt held-out study](docs/semantic-token-compression/held-out-workflow-study.md) compares tree pruning and semantic substitution against the original instructions.

@@ -38,6 +38,8 @@ and limitations.
 
 ### Combined tree pruning and semantic proposals
 
+The [414-prompt combined quality study](combined-quality.md) compares final answer quality and token savings with both the original prompt and the intermediate tree output.
+
 Select **Tree pruning + semantic** in the shared workbench, set the tree target
 ratio and the lexical candidate arm, then compress. This opt-in mode runs tree
 pruning first with its built-in phrase substitution disabled. It then runs the
