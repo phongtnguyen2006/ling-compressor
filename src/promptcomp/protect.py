@@ -18,6 +18,30 @@ from .types import Candidate, Span, Veto
 
 _MODAL_AUX_WORDS = frozenset({"shall", "must", "may", "will", "would", "should", "can", "could", "might"})
 
+# These directives govern wording, layout or required content. A modifier of
+# their object can specify the format just as directly as a verb complement.
+_OUTPUT_DIRECTIVES = frozenset({
+    "begin", "capitalize", "enclose", "end", "exclude", "format", "highlight",
+    "include", "label", "omit", "quote", "repeat", "return", "separate",
+    "start", "surround", "wrap",
+})
+
+
+def _in_output_directive(root_token) -> bool:
+    for verb in (root_token, *root_token.ancestors):
+        if verb.lemma_ not in _OUTPUT_DIRECTIVES or verb.tag_ != "VB":
+            continue
+        # A coordinated imperative inherits the subject of its governing verb.
+        head = verb
+        while head.dep_ == "conj":
+            head = head.head
+        if head.dep_ == "ROOT" and head.tag_ == "VB" and not any(
+            child.dep_ in {"nsubj", "nsubjpass", "aux", "auxpass"} for child in head.children
+        ):
+            return True
+    return False
+
+
 # Currency/optional-thousands/optional-decimal/optional-percent numeric literal.
 # No trailing-comma absorption; catches a leading sign and leading decimals.
 _NUMBER_RE = re.compile(r"[-−]?\$?(?:\d[\d,]*\d|\d)(?:\.\d+)?%?|\.\d+%?")
@@ -240,6 +264,8 @@ def veto(doc, candidates, protect_list, defined_terms=frozenset()):
                         break
             if reason is None and _in_neg_or_modal_scope(span.root):
                 reason = "scope"
+            if reason is None and _in_output_directive(span.root):
+                reason = "output_instruction"
         if reason is None:
             survivors.append(cand)
         else:

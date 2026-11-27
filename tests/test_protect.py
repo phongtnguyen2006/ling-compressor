@@ -205,3 +205,20 @@ def test_veto_partitions_candidates():
     s2, v2 = veto(doc, cands, load_protect_list())
     assert [c.text for c in survivors] == [c.text for c in s2]
     assert [v.text for v in vetoes] == [v.text for v in v2]
+
+
+def test_output_directive_keeps_format_and_allows_neighboring_prose_cut():
+    from promptcomp import compress
+
+    instruction = "Wrap the final answer with double quotes."
+    prose = "The team approved the plan with great enthusiasm."
+    result = compress(f"{instruction} {prose}", target_ratio=0.5,
+                      min_tokens=0, substitute=False)
+    assert instruction in result.compressed
+    assert any(v.protect_class == "output_instruction" for v in result.vetoed)
+    assert any(d.text == "with great enthusiasm" for d in result.deleted)
+
+
+def test_declarative_use_of_output_verb_does_not_activate_directive():
+    _, vetoes, _ = _veto_reasons("The writers wrap the gifts with great enthusiasm.")
+    assert all(v.protect_class != "output_instruction" for v in vetoes)
