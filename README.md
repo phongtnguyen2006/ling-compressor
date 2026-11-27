@@ -1,4 +1,16 @@
-# promptcomp — auditable prompt compression
+# Ling Compressor — Tree pruning
+
+The workbench opens with grammatical tree pruning. Optional phrase shortening starts switched off.
+
+After setup, run `python scripts/ui.py` and open <http://localhost:8000>.
+
+| Development branch | Workflow |
+| --- | --- |
+| `workflow/tree-pruning` | Tree pruning experiments |
+| `workflow/semantic-embedding` | Standalone semantic substitution experiments |
+| `workflow/tree-and-semantic` | Integration and paired comparisons |
+
+Switch workflows with `git switch <branch>`.
 
 A local Python tool for reducing the token cost of long English documents sent to
 LLMs. It removes selected grammatical phrases and records every deletion, while
